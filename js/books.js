@@ -330,7 +330,7 @@ export function renderBookDetail(el, [id]) {
       </section>
 
       <section class="card">
-        <h2>🎙️ トーク履歴 <small class="muted">${talks.length}</small></h2>
+        <h2>🎙️ トーク履歴 <small class="muted">${talks.length}</small>${talks.length ? ` <a class="mini hist-link" href="#/history/${b.id}">フィードバックやディスプレイも見る →</a>` : ''}</h2>
         ${talks.length ? talks.map((t) => `
           <details class="talk-log">
             <summary>${formatDate(t.date)} ・ ${esc(t.modeLabel || '')} ・ ${formatDuration(t.durationSec || 0)}</summary>

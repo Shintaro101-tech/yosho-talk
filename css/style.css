@@ -679,3 +679,26 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
   .player-chip { padding: 5px 8px; }
   .chip-bar { width: 28px; }
 }
+
+/* talk history */
+.hist-month { font-size: 1rem; margin: 18px 0 8px; color: var(--muted); }
+.hist-list { display: grid; gap: 10px; }
+.hist-item { padding: 0; margin: 0; overflow: hidden; }
+.hist-item summary { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; list-style: none; }
+.hist-item summary::-webkit-details-marker { display: none; }
+.hist-item[open] summary { border-bottom: 1px solid var(--line); }
+.hist-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hist-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-meta { font-size: .78rem; color: var(--muted); }
+.hist-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.hist-tags span { font-size: .68rem; font-weight: 700; background: var(--surface-2); border-radius: 99px; padding: 1px 8px; }
+.hist-av .av { width: 44px; border-radius: 50%; }
+.hist-body { padding: 4px 14px 14px; }
+.hist-body h3 { font-size: .95rem; margin: 16px 0 8px; }
+.hist-display { margin: 0; min-height: 0; border-width: 6px; }
+.hist-display .display-cards { max-height: none; }
+.hist-script { max-height: 420px; }
+.hist-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+.hist-link { font-weight: 700; margin-left: 6px; }
+.hist-shortcut { margin: -2px 0 8px; text-align: right; }
+.hist-shortcut a { font-weight: 700; }

@@ -126,6 +126,10 @@ export function addTalk(t) {
   save();
   return talk;
 }
+export function deleteTalk(id) {
+  data.talks = data.talks.filter((t) => t.id !== id);
+  save();
+}
 
 // ---------- Backup ----------
 export function exportJSON() {

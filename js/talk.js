@@ -320,6 +320,7 @@ export function renderTalk(el, [bookIdParam]) {
         <span class="bar"><span style="width:${Math.min(100, (u.used / u.limit) * 100)}%"></span></span>
         <small>${u.left < 1 ? '今月の上限に達しました' : `残り ${Math.ceil(u.left / 60)}分`} ・ ${u.resetLabel}にリセット</small>
       </div>
+      <p class="mini hist-shortcut"><a href="#/history">📜 これまでのトークを見る</a></p>
       <p class="mini muted hello">${s.userName ? `👋 ${esc(s.userName)} さん` : '呼び名が未登録です'} <button class="link-btn" id="editName" ${dis}>${s.userName ? '変更' : '登録'}</button></p>
 
       <h3 class="pick-title">話す本</h3>

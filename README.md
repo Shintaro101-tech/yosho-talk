@@ -46,6 +46,7 @@ js/live.js      GPT-Live WebRTC クライアント / Responses API
 js/avatars.js   アバター（画像・声）
 js/avatar-check.js 声の選択・表示の確認
 js/words.js     単語帳
+js/history.js   トーク履歴
 js/settings.js  設定
 worker/         Cloudflare Worker（中継サーバー）
 ```

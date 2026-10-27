@@ -1,4 +1,7 @@
-// Talk partners. `voice` is a GPT-Live output voice (fixed for a session).
+// Talk partners. `voice` is the default GPT-Live output voice; the learner can pick
+// another one (or a prompt-generated custom voice) on the avatar page.
+
+import { data } from './store.js';
 //
 // Each avatar is a base image plus two overlays (eyes closed, mouth open). Overlay
 // coordinates are in the original 1254×1254 artwork's pixels; everything is drawn
@@ -54,6 +57,36 @@ Favourite novels (mention them only when it fits naturally, and never spoil them
     },
   },
 };
+
+// GPT-Live preset voices with an English accent (the voice is fixed for a session).
+export const VOICES = [
+  { id: 'marin', label: 'Marin', sex: '女性', accent: '標準（アメリカ英語寄り）' },
+  { id: 'cedar', label: 'Cedar', sex: '男性', accent: '標準（アメリカ英語寄り）' },
+  { id: 'vesper', label: 'Vesper', sex: '男性', accent: 'イギリス英語' },
+  { id: 'willow', label: 'Willow', sex: '女性', accent: 'アイルランド英語' },
+  { id: 'stone', label: 'Stone', sex: '男性', accent: 'アイルランド英語' },
+  { id: 'quartz', label: 'Quartz', sex: '女性', accent: 'オーストラリア英語' },
+  { id: 'ripple', label: 'Ripple', sex: '男性', accent: 'オーストラリア英語' },
+  { id: 'gleam', label: 'Gleam', sex: '女性', accent: '北米英語' },
+  { id: 'meridian', label: 'Meridian', sex: '男性', accent: '北米英語' },
+];
+
+// Suggested descriptions for prompt-to-voice (custom voices).
+export const VOICE_PROMPTS = {
+  emma: 'A woman in her late twenties with a natural southern British English accent (soft RP). Warm, clear and friendly mid-range voice with a light, bright timbre. Speaks at a relaxed, natural pace with gentle intonation; sounds frank, observant and good-humoured, like a well-read friend in a London bookshop café.',
+  oliver: 'A man in his early thirties with a natural southern British English accent (soft RP). Calm, warm, slightly low voice with a gentle, unhurried pace and soft, thoughtful pauses. Sounds curious and kind, with a hint of dry humour, like a friendly book lover chatting in a quiet library.',
+};
+
+// The voice chosen for an avatar: { voice } for the session, plus the description of
+// a custom voice (GPT-Live wants it repeated in the instructions).
+export function voiceFor(key) {
+  key = avatarKey(key);
+  const chosen = data.settings.voices?.[key];
+  const custom = (data.settings.customVoices || []).find((v) => v.id === chosen);
+  if (custom) return { voice: { id: custom.id }, prompt: custom.prompt, label: custom.name };
+  const preset = VOICES.find((v) => v.id === chosen) || VOICES.find((v) => v.id === AVATARS[key].voice);
+  return { voice: preset.id, prompt: '', label: preset.label };
+}
 
 // Old settings stored 'leo'.
 export const avatarKey = (key) => (AVATARS[key] ? key : 'emma');

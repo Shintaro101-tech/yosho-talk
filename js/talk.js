@@ -1,7 +1,7 @@
 import { $, $$, esc, formatDuration, openDialog, toast } from './util.js';
 import { data, save, getBook, addVocab, addTalk, addXP } from './store.js';
 import { ensurePasscode } from './api.js';
-import { AVATARS, avatarHTML, avatarKey, lipSync } from './avatars.js';
+import { AVATARS, avatarHTML, avatarKey, lipSync, voiceFor } from './avatars.js';
 import { LiveSession, responsesJSON } from './live.js';
 
 export const MODES = {
@@ -72,7 +72,7 @@ function buildPracticeInstructions({ book, avatar, level, name, phrases }) {
   const list = phrases.map((p, i) => `${i + 1}. "${p.key_phrase}" — e.g. "${p.polished}" (meaning: ${p.meaning_ja}; ${name} had said: "${p.you_said}")`).join('\n');
   return `You are ${a.name}, an English conversation partner in "Yosho Talk" (洋書トーク), a learning app linked to the YouTube show "Yosho Radio" (洋書ラジオ).
 You are ${a.persona}
-${a.accent}
+${a.accent}${voiceFor(avatar).prompt ? `\nYour voice: ${voiceFor(avatar).prompt}` : ''}
 The learner's name is ${name}. Always call them "${name}".
 ${name} is a Japanese speaker whose English level is ${LEVELS[level].en}. These phrases are one step above that level.
 ${book ? `Their recent talk was about "${book.title}"${book.author ? ` by ${book.author}` : ''}.` : ''}
@@ -100,7 +100,7 @@ function buildInstructions({ book, mode, avatar, level, name }) {
   const a = AVATARS[avatar];
   return `You are ${a.name}, an English conversation partner in "Yosho Talk" (洋書トーク), a learning app linked to the YouTube show "Yosho Radio" (洋書ラジオ), where two English teachers talk about English-language books.
 You are ${a.persona}
-${a.accent}
+${a.accent}${voiceFor(avatar).prompt ? `\nYour voice: ${voiceFor(avatar).prompt}` : ''}
 The learner's name is ${name}. Always call them "${name}" — in your greeting and naturally now and then.
 The learner is a Japanese speaker whose English level is ${LEVELS[level].en}. Adjust your English to that level.
 ${bookContext(book)}
@@ -436,7 +436,7 @@ export function renderTalk(el, [bookIdParam]) {
       session: {
         model: 'gpt-live-1',
         instructions,
-        audio: { output: { voice: AVATARS[state.avatar].voice } },
+        audio: { output: { voice: voiceFor(state.avatar).voice } },
         delegation: {
           type: 'responses',
           responses: {
@@ -681,7 +681,7 @@ Goal: help the learner move up to the next level by giving them EXACTLY ${count}
 }
 
 // Drives the avatar's mouth from the partner's audio level.
-function createMeter() {
+export function createMeter() {
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   let raf = 0;
   let src = null;

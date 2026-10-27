@@ -4,6 +4,7 @@
 //   GET  /check          -> passcode check
 //   POST /live/sessions  -> OpenAI POST /v1/live/sessions (GPT-Live WebRTC SDP exchange)
 //   POST /responses      -> OpenAI POST /v1/responses   (word extraction / feedback)
+//   POST /voices         -> OpenAI POST /v1/audio/voices (prompt-to-voice: create a custom voice)
 //
 // Only the WebRTC handshake passes through here; the voice audio itself flows
 // directly between the browser and OpenAI.
@@ -45,7 +46,7 @@ export default {
 
     if (req.method === 'GET' && pathname === '/check') return json({ ok: true }, 200, cors);
 
-    if (req.method === 'POST' && (pathname === '/live/sessions' || pathname === '/responses')) {
+    if (req.method === 'POST' && (pathname === '/live/sessions' || pathname === '/responses' || pathname === '/voices')) {
       const text = await req.text();
       if (text.length > MAX_BODY) return error(413, 'Request too large.', cors);
       let body;
@@ -58,6 +59,12 @@ export default {
         if (body.session.delegation?.type === 'responses') {
           body.session.delegation.responses = { ...body.session.delegation.responses, model: env.BACKEND_MODEL };
         }
+      } else if (pathname === '/voices') {
+        // Only prompt-generated voices, with a short name and description.
+        const name = String(body.name || '').slice(0, 60);
+        const prompt = String(body.prompt || '').slice(0, 2000);
+        if (!name || prompt.length < 20) return error(400, 'Give a name and a voice description.', cors);
+        body = { type: 'prompt', model: 'auto', name, prompt };
       } else {
         body = {
           model: env.BACKEND_MODEL,
@@ -68,7 +75,7 @@ export default {
         };
       }
 
-      const upstream = await fetch(OPENAI + pathname, {
+      const upstream = await fetch(OPENAI + (pathname === '/voices' ? '/audio/voices' : pathname), {
         method: 'POST',
         headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

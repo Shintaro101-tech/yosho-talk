@@ -29,8 +29,8 @@ export function renderSettings(el) {
 
     <section class="card form">
       <h2>🧑‍🎨 アバター</h2>
-      <p class="mini muted">Emma と Oliver の瞬き・口パクの重なり具合を確認・調整できます。</p>
-      <div class="row"><a class="btn btn-ghost" href="#/avatars">アバターの表示を確認</a></div>
+      <p class="mini muted">Emma と Oliver の声を選んだり（試聴つき）、瞬き・口パクの重なり具合を確認したりできます。</p>
+      <div class="row"><a class="btn btn-ghost" href="#/avatars">声の選択・表示の確認</a></div>
     </section>
 
     <form class="card form" id="goalForm">

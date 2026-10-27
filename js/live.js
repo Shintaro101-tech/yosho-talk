@@ -178,3 +178,13 @@ export async function responsesJSON({ instructions, input, schemaName, schema })
     ?? (j.output || []).flatMap((o) => o.content || []).find((c) => c.type === 'output_text')?.text;
   return JSON.parse(text);
 }
+
+// One-shot Responses API call that returns plain text (e.g. the review chat).
+// input: a string, or [{ role: 'user' | 'assistant', content }].
+export async function responsesText({ instructions, input }) {
+  const res = await relayPost('/responses', { instructions, input });
+  const j = await res.json();
+  if (!res.ok) throw new Error(j.error?.message || `HTTP ${res.status}`);
+  return (j.output_text
+    ?? (j.output || []).flatMap((o) => o.content || []).filter((c) => c.type === 'output_text').map((c) => c.text).join('')).trim();
+}

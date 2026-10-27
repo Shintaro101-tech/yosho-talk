@@ -4,6 +4,7 @@ import { ensurePasscode } from './api.js';
 import { AVATARS, avatarHTML, avatarKey, lipSync, voiceFor } from './avatars.js';
 import { LiveSession, responsesJSON } from './live.js';
 import { bookCover } from './books.js';
+import { openAskBox, closeAskBox } from './askbox.js';
 
 export const MODES = {
   impressions: {
@@ -446,6 +447,7 @@ export function renderTalk(el, [bookIdParam]) {
   }
 
   function backToSetup() {
+    closeAskBox();
     state.reviewing = false;
     $('#review', el).innerHTML = '';
     drawStage();
@@ -561,6 +563,7 @@ export function renderTalk(el, [bookIdParam]) {
       return;
     }
     if (!(await ensurePasscode())) return;
+    closeAskBox();
     state.practice = practice;
     state.reviewing = false;
     state.turns = [];
@@ -835,7 +838,10 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
             <p class="polished"><small>Polished</small><span>${highlight(p.polished, p.key_phrase)}</span></p>
             <p class="key-phrase"><b>${esc(p.key_phrase)}</b> — ${esc(p.meaning_ja)}</p>
             <p class="mini muted">${esc(p.why_ja)}</p>
-            <button class="btn btn-sm" data-add="${i}">＋単語帳</button>
+            <span class="row">
+              <button class="btn btn-sm" data-add="${i}">＋単語帳</button>
+              <button class="btn btn-sm btn-ghost" data-ask="${i}">💬 質問する</button>
+            </span>
           </li>`).join('')}
       </ul>`;
   }
@@ -847,6 +853,9 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
       b.disabled = true;
       b.textContent = '✓ 追加しました';
     }));
+    // Floating chat for questions about these phrases.
+    const ask = openAskBox({ phrases: list, level: state.level, bookTitle: getBook(state.bookId)?.title || '' });
+    $$('[data-ask]', box).forEach((b) => (b.onclick = () => ask.prefill(`「${list[+b.dataset.ask].key_phrase}」について：`)));
   }
 
   function drawPolished(fb, box) {
@@ -918,6 +927,7 @@ Goal: help the learner move up to the next level by giving them EXACTLY ${count}
 
   // Leaving the page mid-talk: close the session and keep what was said.
   return () => {
+    closeAskBox();
     clearInterval(timer);
     if (live || state.status === 'paused') stop({ silent: true });
   };

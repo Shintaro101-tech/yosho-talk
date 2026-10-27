@@ -5,6 +5,7 @@ import { $, $$, esc, formatDate, formatDuration, toast } from './util.js';
 import { data, getBook, addVocab, deleteTalk } from './store.js';
 import { AVATARS, avatarHTML } from './avatars.js';
 import { bookCover } from './books.js';
+import { openAskBox, closeAskBox } from './askbox.js';
 
 const NO_BOOK = 'none';
 
@@ -55,6 +56,7 @@ export function renderHistory(el, [bookParam]) {
     }));
   };
   draw();
+  return closeAskBox;
 }
 
 function monthLabel(m) {
@@ -105,7 +107,10 @@ function fillDetails(d, t, redraw) {
             <p class="polished"><small>Polished</small><span>${esc(p.polished)}</span></p>
             <p class="key-phrase"><b>${esc(p.key_phrase)}</b> — ${esc(p.meaning_ja)}</p>
             <p class="mini muted">${esc(p.why_ja)}</p>
-            <button class="btn btn-sm" data-add="${i}">＋単語帳</button>
+            <span class="row">
+              <button class="btn btn-sm" data-add="${i}">＋単語帳</button>
+              <button class="btn btn-sm btn-ghost" data-ask="${i}">💬 質問する</button>
+            </span>
           </li>`).join('')}
       </ul>` : ''}
       ${(fb.corrections || []).length ? `
@@ -148,6 +153,10 @@ function fillDetails(d, t, redraw) {
     addVocab({ term: p.key_phrase, meaning: p.meaning_ja, example: p.polished, note: p.why_ja, bookId: t.bookId || null, source: 'feedback' });
     b.disabled = true;
     b.textContent = '✓ 追加しました';
+  }));
+  $$('[data-ask]', body).forEach((b) => (b.onclick = () => {
+    const ask = openAskBox({ phrases: polished, level: t.level, bookTitle: getBook(t.bookId)?.title || t.bookTitle || '' });
+    ask.prefill(`「${polished[+b.dataset.ask].key_phrase}」について：`);
   }));
   $('[data-del]', body).onclick = () => {
     if (!confirm('このトークの記録を削除しますか？（単語帳の単語は残ります）')) return;

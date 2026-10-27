@@ -6,6 +6,7 @@ import { data } from './store.js';
 // Each avatar is a base image plus two overlays (eyes closed, mouth open). Overlay
 // coordinates are in the original 1254×1254 artwork's pixels; everything is drawn
 // with percentages so it scales to any box. Check alignment at #/avatars.
+// Add `talk: false` to an avatar to keep it on #/avatars only (not on the talk screen).
 
 const ART = 1254;
 
@@ -62,7 +63,6 @@ Favourite novels (mention them only when it fits naturally, and never spoil them
     name: 'Noah',
     fullName: 'Noah Bennett',
     from: 'アメリカ出身',
-    talk: false, // not offered on the talk screen yet (being checked on #/avatars)
     voice: 'meridian',
     tagline: '本の世界を日常につなげてくれる、気さくな読書仲間',
     profile: '30代前半・アメリカ出身。穏やかで親しみやすく、好奇心旺盛。自分の意見も話すが押しつけず、違う考えを面白がる。',
@@ -87,7 +87,6 @@ Favourite novels (mention them only when it fits naturally, and never spoil them
     name: 'Chloe',
     fullName: 'Chloe Parker',
     from: 'アメリカ出身',
-    talk: false,
     voice: 'gleam',
     tagline: '物語から想像を広げてくれる、遊び心のある読書仲間',
     profile: '20代後半〜30代前半・アメリカ出身。想像力が豊かで好奇心旺盛、少しおちゃめ。静かで真剣な話にも丁寧に付き合う。',

@@ -33,17 +33,6 @@ export function renderSettings(el) {
       <div class="row"><a class="btn btn-ghost" href="#/avatars">声の選択・表示の確認</a></div>
     </section>
 
-    <form class="card form" id="goalForm">
-      <h2>🎯 学習目標</h2>
-      <label>1日の目標 XP
-        <select name="dailyGoal">
-          ${[20, 50, 100, 200].map((n) => `<option ${+s.dailyGoal === n ? 'selected' : ''}>${n}</option>`).join('')}
-        </select>
-      </label>
-      <p class="mini muted">XP の目安：本の登録 +20 ／ 読了 +50 ／ トーク1分 +10 ／ 単語追加 +3 ／ 復習1枚 +2</p>
-      <div class="actions-left"><button class="btn btn-primary">保存</button></div>
-    </form>
-
     <section class="card form">
       <h2>💾 データのバックアップ</h2>
       <p class="mini muted">データはこのブラウザ（localStorage）に保存されています。ブラウザのデータを消すと失われるので、ときどきエクスポートしてください。別の端末へ移すときもこのファイルを使います（合言葉は含まれません）。</p>
@@ -60,6 +49,7 @@ export function renderSettings(el) {
       <div>
         <h2>洋書トーク <small class="muted">Read, Talk, Learn</small></h2>
         <p class="mini">YouTube「洋書ラジオ」の英語学習アプリ。本の情報は <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>、トークは OpenAI GPT-Live-1 を利用しています。</p>
+        <p><a class="btn btn-sm yt-btn" href="https://www.youtube.com/@Youshoradio" target="_blank" rel="noopener">▶ YouTube「洋書ラジオ」を見る</a></p>
       </div>
     </section>`;
 
@@ -80,13 +70,6 @@ export function renderSettings(el) {
   $('#nameForm', el).onsubmit = (e) => {
     e.preventDefault();
     s.userName = e.target.name.value.trim();
-    save();
-    toast('保存しました', 'success');
-  };
-
-  $('#goalForm', el).onsubmit = (e) => {
-    e.preventDefault();
-    s.dailyGoal = +e.target.dailyGoal.value;
     save();
     toast('保存しました', 'success');
   };
@@ -112,7 +95,7 @@ export function renderSettings(el) {
     }
   };
   $('#reset', el).onclick = () => {
-    if (!confirm('本・単語・トーク・XP をすべて削除します。元に戻せません。よろしいですか？')) return;
+    if (!confirm('本・単語・トークの記録をすべて削除します。元に戻せません。よろしいですか？')) return;
     resetAll();
     toast('初期化しました');
     renderSettings(el);

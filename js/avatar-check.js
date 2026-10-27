@@ -3,7 +3,7 @@
 // Overlay tweaks are kept in this browser.
 
 import { $, $$, esc, toast } from './util.js';
-import { data, save } from './store.js';
+import { data, save, talkUsage, addTalkSeconds } from './store.js';
 import { ensurePasscode, relayPost } from './api.js';
 import { AVATARS, VOICES, VOICE_PROMPTS, avatarHTML, overlayBoxes, getTweaks, setTweaks, lipSync, voiceFor } from './avatars.js';
 import { LiveSession } from './live.js';
@@ -22,7 +22,7 @@ export function renderAvatarCheck(el) {
       <section class="card av-check" data-key="${k}">
         <div class="av-check-stage" data-stage></div>
         <div class="av-check-side">
-          <h2>${esc(a.fullName)} <small class="muted">voice: ${a.voice}</small></h2>
+          <h2>${esc(a.fullName)} <span class="from">${esc(a.from)}</span></h2>
           <p class="mini muted">${esc(a.profile)}</p>
           <div class="voice-box" data-voices></div>
           <h3 class="pick-title">表示の確認</h3>
@@ -181,6 +181,7 @@ async function playPreview(key, voiceId, button, stage) {
   const wasMine = preview?.button === button;
   stopPreview();
   if (wasMine) return;
+  if (talkUsage().left < 1) { toast('今月のトーク時間を使い切りました', 'error'); return; }
   if (!(await ensurePasscode())) return;
   const a = AVATARS[key];
   const custom = (data.settings.customVoices || []).find((v) => v.id === voiceId);
@@ -200,6 +201,7 @@ This is a short voice preview, not a conversation. When asked, introduce yoursel
       if (preview !== p) return;
       if (st === 'live') {
         button.textContent = '■ 停止';
+        p.startedAt = Date.now();
         p.live.setMuted(true);
         p.live.send({ type: 'session.commentary.append', event_id: `hello_${Date.now()}`, delegation_id: null, content: 'Introduce yourself now.' });
         lastSpeech = Date.now() + 3000; // allow a moment before the first words
@@ -228,6 +230,9 @@ function stopPreview() {
   preview = null;
   p.timers.forEach((t) => { clearInterval(t); clearTimeout(t); });
   p.button.textContent = '▶ 試聴';
-  p.live?.close(1500);
+  // Previews count towards this month's talk time too.
+  p.live?.close(1500).then((r) => {
+    if (p.startedAt) addTalkSeconds(r?.usage?.seconds ?? (Date.now() - p.startedAt) / 1000);
+  });
   p.meter?.stop();
 }

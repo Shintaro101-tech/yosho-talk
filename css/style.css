@@ -561,3 +561,29 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
 .voice-make summary { cursor: pointer; font-weight: 700; font-size: .9rem; }
 .form-inline { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; align-items: flex-start; }
 .form-inline input, .form-inline textarea { width: 100%; }
+
+/* monthly talk time */
+.usage { background: var(--surface-2); border-radius: 12px; padding: 8px 12px 6px; margin-bottom: 10px; }
+.usage-head { display: flex; justify-content: space-between; align-items: baseline; font-size: .85rem; }
+.usage-head span b { font-size: 1.1rem; }
+.usage .bar { margin: 4px 0 2px; }
+.usage small { color: var(--muted); font-size: .74rem; }
+.usage.low .bar span { background: #F08C2B; }
+.usage.over .bar span { background: var(--danger); }
+.chip-level small { font-weight: 700; opacity: .7; margin-left: 1px; }
+.chip-bar.warn span { background: var(--danger); }
+.player-chip { text-decoration: none; color: inherit; }
+.pause-note { flex-basis: 100%; margin: 0 0 2px; font-size: .82rem; font-weight: 700; }
+
+/* character hometown */
+.from { font-family: var(--font); font-size: .7rem; font-weight: 700; color: var(--muted); background: var(--surface-2); border-radius: 99px; padding: 1px 8px; margin-left: 4px; vertical-align: 2px; white-space: nowrap; }
+.avatar-opt.on .from { background: rgba(255, 255, 255, .7); }
+
+/* YouTube link */
+.yt-link { display: flex; align-items: center; gap: 6px; text-decoration: none; color: var(--navy); font-weight: 800; font-size: .8rem; padding: 6px 10px; border-radius: 99px; background: rgba(255, 255, 255, .55); white-space: nowrap; }
+.yt-link svg { width: 22px; height: 16px; }
+.yt-link:hover { background: #fff; }
+.yt-btn { background: #FF0033; border-color: #FF0033; color: #fff; }
+@media (max-width: 900px) { .yt-link span { display: none; } .yt-link { padding: 6px; margin-left: auto; } .yt-link + .player-chip { margin-left: 8px; } }
+.player-chip { white-space: nowrap; }
+@media (max-width: 900px) { .player-chip { padding: 6px 10px; gap: 6px; } .chip-bar { width: 36px; } }

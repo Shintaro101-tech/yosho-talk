@@ -1,5 +1,5 @@
 import { $, $$, esc, openDialog, speak, toast } from './util.js';
-import { data, addVocab, updateVocab, deleteVocab, getBook, isDue, isMastered } from './store.js';
+import { data, addVocab, updateVocab, deleteVocab, getBook } from './store.js';
 
 let query = '';
 let bookFilter = '';
@@ -10,18 +10,15 @@ export function renderWords(el) {
     const list = data.vocab.filter((v) =>
       (!bookFilter || v.bookId === bookFilter) &&
       (!q || v.term.toLowerCase().includes(q) || v.meaning.includes(query)));
-    const due = data.vocab.filter(isDue).length;
-    const mastered = data.vocab.filter(isMastered).length;
     const bookIds = [...new Set(data.vocab.map((v) => v.bookId).filter(Boolean))];
 
     el.innerHTML = `
       <section class="hero">
         <div>
           <h1>My Word Book</h1>
-          <p class="muted">登録 <strong>${data.vocab.length}</strong> 語 ・ 今日の復習 <strong>${due}</strong> ・ マスター <strong>${mastered}</strong></p>
+          <p class="muted">登録 <strong>${data.vocab.length}</strong> 語</p>
         </div>
         <div class="row">
-          ${due ? `<a class="btn btn-primary" href="#/play/flash">🃏 今日の復習 (${due})</a>` : ''}
           <button class="btn" id="add">＋ 追加</button>
         </div>
       </section>
@@ -34,7 +31,7 @@ export function renderWords(el) {
       </div>
       ${list.length ? `<ul class="word-list">${list.map(wordRow).join('')}</ul>`
         : `<div class="empty-state small"><h2>${data.vocab.length ? '見つかりません' : '単語帳はまだ空です'}</h2>
-           <p>トーク中に “Can you save that phrase?” と頼むか、トーク後の「抽出」で単語がたまります。手動でも追加できます。</p></div>`}`;
+           <p>トーク中に “Can you save that phrase?” と頼むか、ディスプレイやトーク後のフィードバックの「＋単語帳」で単語がたまります。手動でも追加できます。</p></div>`}`;
 
     $('#add', el).onclick = () => openWordForm(null, draw);
     const qi = $('#q', el);
@@ -56,11 +53,6 @@ export function renderWords(el) {
   draw();
 }
 
-function mastery(v) {
-  const pct = Math.min(100, Math.round((v.srs.interval / 21) * 100));
-  return `<span class="mastery" title="定着度 ${pct}%"><span style="width:${pct}%"></span></span>`;
-}
-
 function wordRow(v) {
   const book = v.bookId ? getBook(v.bookId) : null;
   return `
@@ -68,8 +60,6 @@ function wordRow(v) {
       <div class="word-head">
         <h3>${esc(v.term)}</h3>
         <button class="icon-btn" data-speak="${esc(v.term)}" aria-label="発音を聞く">🔊</button>
-        ${isDue(v) ? '<span class="badge st-reading">復習</span>' : ''}
-        ${isMastered(v) ? '<span class="badge st-finished">マスター</span>' : ''}
         <span class="spacer"></span>
         <button class="icon-btn" data-edit="${v.id}" aria-label="編集">✏️</button>
         <button class="icon-btn" data-del="${v.id}" aria-label="削除">🗑️</button>
@@ -77,7 +67,7 @@ function wordRow(v) {
       <p class="meaning">${esc(v.meaning)}</p>
       ${v.example ? `<p class="example">${esc(v.example)} <button class="icon-btn sm" data-speak="${esc(v.example)}" aria-label="例文を聞く">🔊</button></p>` : ''}
       ${v.note ? `<p class="mini muted">${esc(v.note)}</p>` : ''}
-      <div class="word-foot">${mastery(v)} ${book ? `<a class="mini" href="#/book/${book.id}">📖 ${esc(book.title)}</a>` : ''}</div>
+      ${book ? `<div class="word-foot"><a class="mini" href="#/book/${book.id}">📖 ${esc(book.title)}</a></div>` : ''}
     </li>`;
 }
 

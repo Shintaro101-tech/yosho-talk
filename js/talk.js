@@ -1,5 +1,5 @@
 import { $, $$, esc, formatDuration, openDialog, toast } from './util.js';
-import { data, save, getBook, addVocab, addTalk, addXP } from './store.js';
+import { data, save, getBook, addVocab, addTalk, talkUsage, addTalkSeconds, TALK_LIMIT_MIN } from './store.js';
 import { ensurePasscode } from './api.js';
 import { AVATARS, avatarHTML, avatarKey, lipSync, voiceFor } from './avatars.js';
 import { LiveSession, responsesJSON } from './live.js';
@@ -35,6 +35,7 @@ export const LEVELS = {
 const NEXT_LEVEL = { A2: 'B1', B1: 'B2', B2: 'C1', C1: 'C2', C2: 'C2' };
 
 let live = null;
+const IDLE_MS = 30_000; // pause the session after this long with nobody speaking
 
 // Escapes text and marks the key phrase inside the polished sentence.
 function highlight(sentence, phrase) {
@@ -207,6 +208,9 @@ export function renderTalk(el, [bookIdParam]) {
     startedAt: 0,
     muted: false,
     practice: null, // phrases being practised, or null for a normal talk
+    elapsedBefore: 0, // seconds of earlier sessions in this talk (before a pause)
+    segStart: 0,
+    lastActivity: 0,
     reviewing: false,
   };
   let meter = null;
@@ -236,7 +240,14 @@ export function renderTalk(el, [bookIdParam]) {
     const locked = state.status !== 'idle' && state.status !== 'ended';
     const book = getBook(state.bookId);
     const dis = locked ? 'disabled' : '';
+    const u = talkUsage();
+    const usedMin = Math.floor(u.used / 60);
     setup.innerHTML = `
+      <div class="usage ${u.left < 1 ? 'over' : u.left < 600 ? 'low' : ''}">
+        <div class="usage-head"><b>今月のトーク</b><span><b>${usedMin}</b> / ${u.limit / 60}分</span></div>
+        <span class="bar"><span style="width:${Math.min(100, (u.used / u.limit) * 100)}%"></span></span>
+        <small>${u.left < 1 ? '今月の上限に達しました' : `残り ${Math.ceil(u.left / 60)}分`} ・ ${u.resetLabel}にリセット</small>
+      </div>
       <p class="mini muted hello">${s.userName ? `👋 ${esc(s.userName)} さん` : '呼び名が未登録です'} <button class="link-btn" id="editName" ${dis}>${s.userName ? '変更' : '登録'}</button></p>
       ${book ? `<p class="talk-book">📖 <b>${esc(book.title)}</b> <button class="link-btn" id="unlinkBook" ${dis} title="本の指定を外す">×</button></p>` : ''}
 
@@ -244,7 +255,7 @@ export function renderTalk(el, [bookIdParam]) {
       <div class="avatar-pick">
         ${Object.entries(AVATARS).map(([k, a]) => `
           <button class="avatar-opt ${k === state.avatar ? 'on' : ''}" data-av="${k}" ${dis}>
-            ${avatarHTML(k, { framing: 'face' })}<span><b>${a.name}</b><small>${a.tagline}</small></span>
+            ${avatarHTML(k, { framing: 'face' })}<span><b>${a.name} <span class="from">${a.from}</span></b><small>${a.tagline}</small></span>
           </button>`).join('')}
       </div>
 
@@ -297,7 +308,7 @@ export function renderTalk(el, [bookIdParam]) {
   function drawStage() {
     const a = AVATARS[state.avatar];
     // Phase drives the phone layout: setup screen → full-screen call → review.
-    const inCall = ['connecting', 'live', 'lost', 'ending'].includes(state.status);
+    const inCall = ['connecting', 'live', 'lost', 'pausing', 'paused', 'ending'].includes(state.status);
     const talkEl = $('.talk', el);
     talkEl.classList.toggle('in-call', inCall);
     talkEl.dataset.phase = inCall ? 'call' : state.reviewing ? 'review' : 'setup';
@@ -307,7 +318,7 @@ export function renderTalk(el, [bookIdParam]) {
     }
     $('#avatarBox', el).dataset.state = state.status;
     $('#avName', el).textContent = a.name;
-    const labels = { idle: '準備OK', connecting: '接続中…', live: '会話中', ending: '終了処理中…', ended: '終了しました', lost: '接続が切れました' };
+    const labels = { idle: '準備OK', connecting: '接続中…', live: '会話中', pausing: '一時停止中…', paused: '一時停止中', ending: '終了処理中…', ended: '終了しました', lost: '接続が切れました' };
     $('#statusText', el).textContent = labels[state.status] || state.status;
     $('#statusDot', el).className = `status-dot ${state.status}`;
     const c = $('#controls', el);
@@ -319,6 +330,13 @@ export function renderTalk(el, [bookIdParam]) {
         <button class="btn" id="mute">${state.muted ? '🔇 ミュート中' : '🎤 マイクON'}</button>
         <button class="btn btn-danger" id="stop">■ 終了</button>`;
       $('#mute', c).onclick = () => { state.muted = !state.muted; live?.setMuted(state.muted); drawStage(); };
+      $('#stop', c).onclick = () => stop();
+    } else if (state.status === 'paused') {
+      c.innerHTML = `
+        <p class="pause-note">30秒間会話がなかったので一時停止しました（課金も止まっています）。</p>
+        <button class="btn btn-primary" id="resume">▶ 再開</button>
+        <button class="btn btn-danger" id="stop">■ 終了</button>`;
+      $('#resume', c).onclick = () => resume();
       $('#stop', c).onclick = () => stop();
     } else {
       c.innerHTML = '';
@@ -400,15 +418,18 @@ export function renderTalk(el, [bookIdParam]) {
   async function start(practice = null) {
     if (!s.userName && !(await askUserName())) return;
     drawSetup();
+    if (talkUsage().left < 1) {
+      toast(`今月のトーク時間（${TALK_LIMIT_MIN}分）を使い切りました。${talkUsage().resetLabel}にリセットされます。`, 'error');
+      return;
+    }
     if (!(await ensurePasscode())) return;
-    const book = getBook(state.bookId);
-    const name = s.userName;
     state.practice = practice;
     state.reviewing = false;
     state.turns = [];
     state.saved = [];
     state.shown = [];
     state.muted = false;
+    state.elapsedBefore = 0;
     if (practice) {
       // Put the phrases on the display straight away; no need to wait for the avatar.
       state.shown.push({
@@ -419,17 +440,33 @@ export function renderTalk(el, [bookIdParam]) {
     }
     drawDisplay();
     $('#review', el).innerHTML = '';
+    window.scrollTo(0, 0);
+    await connect(false);
+  }
+
+  // Opens a GPT-Live session. resume: continue a talk that was paused for silence.
+  async function connect(resume) {
+    const book = getBook(state.bookId);
+    const name = s.userName;
+    const practice = state.practice;
     state.status = 'connecting';
     drawSetup();
     drawStage();
-    window.scrollTo(0, 0);
 
-    const instructions = practice
+    let instructions = practice
       ? buildPracticeInstructions({ book, avatar: state.avatar, level: state.level, name, phrases: practice })
       : buildInstructions({ book, mode: state.mode, avatar: state.avatar, level: state.level, name });
-    const greeting = practice
+    let greeting = practice
       ? `Greet ${name} by name now and say "Let's practice using the ${practice.length === 1 ? 'phrase' : 'phrases'} in conversation." Then go over the ${practice.length === 1 ? 'phrase' : 'phrases'} on the display.`
       : `Greet ${name} by name now, warmly, and ask for a short summary of what they have read so far${book ? ` of "${book.title}"` : ' (and which book it is)'}.`;
+    if (resume) {
+      const transcript = state.turns.map((t) => `${t.role === 'user' ? name : 'You'}: ${t.text}`).join('\n').slice(-8000);
+      const shown = state.shown.map((c) => `${c.heading}: ${c.items.map((i) => i.text).join(' | ')}`).join('\n');
+      instructions += `\n\nRESUMED CONVERSATION
+The talk was paused because nobody spoke for a while, and ${name} has just resumed it. Do not start over and do not greet them as if for the first time. Here is the conversation so far:
+${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` : ''}`;
+      greeting = `Welcome ${name} back in one short, friendly sentence, then continue the conversation where you left off (for example, gently repeat your last question).`;
+    }
 
     meter = createMeter();
     live = new LiveSession({
@@ -449,9 +486,12 @@ export function renderTalk(el, [bookIdParam]) {
       },
       onStatus: (st) => {
         if (st === 'live' && state.status !== 'live') {
-          state.startedAt = Date.now();
-          timer = setInterval(() => ($('#clock', el).textContent = formatDuration((Date.now() - state.startedAt) / 1000)), 1000);
-          // Kick off the conversation: the avatar greets the learner by name first.
+          state.segStart = Date.now();
+          state.lastActivity = Date.now();
+          clearInterval(timer);
+          timer = setInterval(tick, 1000);
+          tick();
+          // Kick off the conversation: the avatar speaks first.
           live.send({ type: 'session.commentary.append', event_id: `greet_${Date.now()}`, delegation_id: null, content: greeting });
         }
         if (st === 'ended') return;
@@ -460,8 +500,9 @@ export function renderTalk(el, [bookIdParam]) {
       },
       onRemoteStream: (stream) => meter.attach(stream, $('#avatarBox', el)),
       onEvent: (ev) => {
-        if (ev.type === 'session.input_transcript.delta') addTranscript('user', ev.delta);
-        else if (ev.type === 'session.output_transcript.delta') addTranscript('assistant', ev.delta);
+        if (ev.type === 'session.input_transcript.delta') { addTranscript('user', ev.delta); state.lastActivity = Date.now(); }
+        else if (ev.type === 'session.output_transcript.delta') { addTranscript('assistant', ev.delta); state.lastActivity = Date.now(); }
+        else if (ev.type === 'response.event') state.lastActivity = Date.now();
         else if (ev.type === 'error') {
           console.warn('GPT-Live error', ev);
           toast(`エラー: ${ev.error?.message || '不明なエラー'}`, 'error');
@@ -485,25 +526,70 @@ export function renderTalk(el, [bookIdParam]) {
       console.error(err);
       const msg = err.name === 'NotAllowedError' ? 'マイクの使用が許可されていません。ブラウザの設定を確認してください。' : err.message;
       toast(msg, 'error');
-      $('#review', el).innerHTML = `<div class="card error-card"><h3>接続できませんでした</h3><p>${esc(msg)}</p></div>`;
       meter?.stop();
       live = null;
+      if (resume) {
+        state.status = 'paused';
+        drawStage();
+        return;
+      }
+      $('#review', el).innerHTML = `<div class="card error-card"><h3>接続できませんでした</h3><p>${esc(msg)}</p></div>`;
       state.status = 'idle';
       drawSetup();
       drawStage();
     }
   }
 
-  async function stop({ silent = false } = {}) {
-    if (!live) return;
-    state.status = 'ending';
-    if (!silent) drawStage();
+  // Every second while live: clock, monthly limit, and the silence auto-pause.
+  function tick() {
+    if (state.status !== 'live') return;
+    const seg = (Date.now() - state.segStart) / 1000;
+    const left = talkUsage().left - seg;
+    $('#clock', el).textContent = `${formatDuration(state.elapsedBefore + seg)} ・ 今月の残り ${Math.max(0, Math.ceil(left / 60))}分`;
+    if (left <= 0) {
+      toast(`今月のトーク時間（${TALK_LIMIT_MIN}分）を使い切ったので終了しました。`, 'error');
+      stop();
+    } else if (Date.now() - state.lastActivity > IDLE_MS) {
+      pause();
+    }
+  }
+
+  // Closes the current GPT-Live session (billing stops) and counts its time.
+  async function endSegment() {
     clearInterval(timer);
     const closed = await live.close();
     live = null;
     meter?.stop();
-    const elapsed = state.startedAt ? (Date.now() - state.startedAt) / 1000 : 0;
-    const durationSec = Math.round(closed?.usage?.seconds ?? elapsed);
+    const elapsed = state.segStart ? (Date.now() - state.segStart) / 1000 : 0;
+    const sec = Math.round(closed?.usage?.seconds ?? elapsed);
+    state.segStart = 0;
+    state.elapsedBefore += sec;
+    addTalkSeconds(sec);
+  }
+
+  async function pause() {
+    if (!live || state.status !== 'live') return;
+    state.status = 'pausing';
+    drawStage();
+    await endSegment();
+    state.status = 'paused';
+    drawStage();
+  }
+
+  async function resume() {
+    if (talkUsage().left < 1) {
+      toast(`今月のトーク時間（${TALK_LIMIT_MIN}分）を使い切りました。`, 'error');
+      return;
+    }
+    await connect(true);
+  }
+
+  async function stop({ silent = false } = {}) {
+    if (!live && state.status !== 'paused') return;
+    state.status = 'ending';
+    if (!silent) drawStage();
+    if (live) await endSegment();
+    const durationSec = state.elapsedBefore;
     state.status = 'ended';
     if (!state.turns.length) {
       if (!silent) { drawSetup(); drawStage(); }
@@ -524,7 +610,6 @@ export function renderTalk(el, [bookIdParam]) {
       savedTerms: state.saved.map((v) => v.term),
       ...(practice ? { practiced: practice.map((p) => p.key_phrase) } : {}),
     });
-    if (durationSec >= 30) addXP(Math.max(5, Math.round((durationSec / 60) * 10)), `${formatDuration(durationSec)}${practice ? 'フレーズ練習' : 'トーク'}`);
     if (silent) return;
     state.reviewing = true;
     drawSetup();
@@ -676,7 +761,7 @@ Goal: help the learner move up to the next level by giving them EXACTLY ${count}
   // Leaving the page mid-talk: close the session and keep what was said.
   return () => {
     clearInterval(timer);
-    if (live) stop({ silent: true });
+    if (live || state.status === 'paused') stop({ silent: true });
   };
 }
 

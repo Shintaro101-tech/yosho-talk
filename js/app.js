@@ -1,9 +1,8 @@
 import { $, $$ } from './util.js';
-import { onChange, levelInfo, currentStreak } from './store.js';
+import { onChange, talkUsage } from './store.js';
 import { renderBooks, renderBookDetail } from './books.js';
 import { renderTalk } from './talk.js';
 import { renderWords } from './words.js';
-import { renderPlay } from './play.js';
 import { renderSettings } from './settings.js';
 import { renderAvatarCheck } from './avatar-check.js';
 
@@ -12,7 +11,6 @@ const routes = {
   book: renderBookDetail,
   talk: renderTalk,
   words: renderWords,
-  play: renderPlay,
   settings: renderSettings,
   avatars: renderAvatarCheck,
 };
@@ -32,13 +30,14 @@ function route() {
   window.scrollTo(0, 0);
 }
 
+// This month's talk time (capped; resets on the 1st).
 function renderChip() {
-  const { level, into, need } = levelInfo();
-  const streak = currentStreak();
+  const { used, limit } = talkUsage();
+  const min = Math.floor(used / 60);
+  const pct = Math.min(100, (used / limit) * 100);
   $('#playerChip').innerHTML = `
-    <span class="chip-level">Lv.${level}</span>
-    <span class="chip-bar"><span style="width:${(into / need) * 100}%"></span></span>
-    <span class="chip-streak" title="連続学習日数">🔥${streak}</span>`;
+    <span class="chip-level">🎙️ ${min}<small>/${limit / 60}分</small></span>
+    <span class="chip-bar ${pct >= 90 ? 'warn' : ''}"><span style="width:${pct}%"></span></span>`;
 }
 
 window.addEventListener('hashchange', route);

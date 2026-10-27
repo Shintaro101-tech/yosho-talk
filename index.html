@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>洋書トーク — Read, Talk, Learn</title>
+  <meta name="description" content="洋書ラジオの英語学習アプリ。読んだ本を記録し、アバターと英語でディスカッションし、学んだ単語をゲームで覚えよう。">
+  <meta name="theme-color" content="#F6C21C">
+  <link rel="icon" href="assets/icon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;500;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/books" aria-label="洋書トーク ホーム">
+      <img src="assets/icon.png" alt="" class="brand-icon">
+      <span class="brand-text">
+        <span class="brand-name">洋書トーク</span>
+        <span class="brand-sub">Read, Talk, Learn</span>
+      </span>
+    </a>
+    <nav class="nav" aria-label="メインメニュー">
+      <a href="#/books" data-nav="books"><span class="nav-ico">📚</span><span>本棚</span></a>
+      <a href="#/talk" data-nav="talk"><span class="nav-ico">🎙️</span><span>トーク</span></a>
+      <a href="#/words" data-nav="words"><span class="nav-ico">🗂️</span><span>単語帳</span></a>
+      <a href="#/play" data-nav="play"><span class="nav-ico">🏆</span><span>学習</span></a>
+      <a href="#/settings" data-nav="settings"><span class="nav-ico">⚙️</span><span>設定</span></a>
+    </nav>
+    <div class="player-chip" id="playerChip" title="レベルと連続学習日数"></div>
+  </header>
+
+  <main id="view" class="view" tabindex="-1"></main>
+
+  <dialog id="dialog" class="dialog"></dialog>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

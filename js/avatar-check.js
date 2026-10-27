@@ -10,7 +10,6 @@ import { LiveSession } from './live.js';
 import { createMeter } from './talk.js';
 
 const PARTS = { eyes: '目（閉じ）', mouth: '口（開き）' };
-const RECOMMENDED = { oliver: 'vesper' };
 
 let preview = null; // the voice preview playing now: { live, meter, button, timers }
 const FIELDS = ['x', 'y', 'w', 'h'];
@@ -134,7 +133,7 @@ function drawVoices(card, key, stage) {
     <h3 class="pick-title">🎙️ 声</h3>
     <ul class="voice-list">
       ${customs.map((v) => row(v.id, v.name, 'オリジナルの声（イギリス英語）', ' <span class="badge">オリジナル</span>')).join('')}
-      ${VOICES.map((v) => row(v.id, v.label, `${v.sex}・${v.accent}`, RECOMMENDED[key] === v.id ? ' <span class="badge">おすすめ</span>' : '')).join('')}
+      ${VOICES.map((v) => row(v.id, v.label, `${v.sex}・${v.accent}`, AVATARS[key].voice === v.id ? ' <span class="badge">デフォルト</span>' : '')).join('')}
     </ul>
     <details class="voice-make">
       <summary>＋ 説明文からオリジナルの声を作る</summary>

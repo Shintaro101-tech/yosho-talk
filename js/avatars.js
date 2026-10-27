@@ -13,7 +13,7 @@ export const AVATARS = {
   emma: {
     name: 'Emma',
     fullName: 'Emma Bennett',
-    voice: 'marin',
+    voice: 'willow',
     tagline: '小さな発見を一緒に楽しむ観察者',
     profile: '20代後半・イギリス出身。温かく率直で、観察力がある。何でも褒めるのではなく、対等に話してくれる。',
     persona: `Emma Bennett, a British woman in her late twenties.
@@ -36,7 +36,7 @@ Favourite novels (mention them only when it fits naturally, and never spoil them
   oliver: {
     name: 'Oliver',
     fullName: 'Oliver “Ollie” Reed',
-    voice: 'cedar',
+    voice: 'vesper',
     tagline: '物語をじっくり味わう読書仲間',
     profile: '30代前半・イギリス出身。穏やかで好奇心が強く、ときどき控えめな冗談を言う。考えている間も急かさず待ってくれる。',
     persona: `Oliver "Ollie" Reed, a British man in his early thirties. Friends call you Ollie, and the learner may too.

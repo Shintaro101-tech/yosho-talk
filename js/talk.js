@@ -1,7 +1,7 @@
 import { $, $$, esc, formatDuration, openDialog, toast } from './util.js';
 import { data, save, getBook, addVocab, addTalk, addXP } from './store.js';
 import { ensurePasscode } from './api.js';
-import { AVATARS, avatarSVG } from './avatars.js';
+import { AVATARS, avatarHTML, avatarKey, lipSync } from './avatars.js';
 import { LiveSession, responsesJSON } from './live.js';
 
 export const MODES = {
@@ -71,7 +71,8 @@ function buildPracticeInstructions({ book, avatar, level, name, phrases }) {
   const one = phrases.length === 1;
   const list = phrases.map((p, i) => `${i + 1}. "${p.key_phrase}" — e.g. "${p.polished}" (meaning: ${p.meaning_ja}; ${name} had said: "${p.you_said}")`).join('\n');
   return `You are ${a.name}, an English conversation partner in "Yosho Talk" (洋書トーク), a learning app linked to the YouTube show "Yosho Radio" (洋書ラジオ).
-Personality: ${a.persona}.
+You are ${a.persona}
+${a.accent}
 The learner's name is ${name}. Always call them "${name}".
 ${name} is a Japanese speaker whose English level is ${LEVELS[level].en}. These phrases are one step above that level.
 ${book ? `Their recent talk was about "${book.title}"${book.author ? ` by ${book.author}` : ''}.` : ''}
@@ -98,7 +99,8 @@ ${HOW_TO_TALK(name)}`;
 function buildInstructions({ book, mode, avatar, level, name }) {
   const a = AVATARS[avatar];
   return `You are ${a.name}, an English conversation partner in "Yosho Talk" (洋書トーク), a learning app linked to the YouTube show "Yosho Radio" (洋書ラジオ), where two English teachers talk about English-language books.
-Personality: ${a.persona}.
+You are ${a.persona}
+${a.accent}
 The learner's name is ${name}. Always call them "${name}" — in your greeting and naturally now and then.
 The learner is a Japanese speaker whose English level is ${LEVELS[level].en}. Adjust your English to that level.
 ${bookContext(book)}
@@ -196,7 +198,7 @@ export function renderTalk(el, [bookIdParam]) {
   const state = {
     bookId: bookIdParam && getBook(bookIdParam) ? bookIdParam : '',
     mode: MODES[s.talkMode] ? s.talkMode : 'impressions',
-    avatar: s.avatar,
+    avatar: avatarKey(s.avatar),
     level: LEVELS[s.level] ? s.level : 'B1',
     status: 'idle',
     turns: [],
@@ -242,7 +244,7 @@ export function renderTalk(el, [bookIdParam]) {
       <div class="avatar-pick">
         ${Object.entries(AVATARS).map(([k, a]) => `
           <button class="avatar-opt ${k === state.avatar ? 'on' : ''}" data-av="${k}" ${dis}>
-            ${avatarSVG(k)}<span><b>${a.name}</b><small>${a.tagline}</small></span>
+            ${avatarHTML(k, { framing: 'face' })}<span><b>${a.name}</b><small>${a.tagline}</small></span>
           </button>`).join('')}
       </div>
 
@@ -299,7 +301,10 @@ export function renderTalk(el, [bookIdParam]) {
     const talkEl = $('.talk', el);
     talkEl.classList.toggle('in-call', inCall);
     talkEl.dataset.phase = inCall ? 'call' : state.reviewing ? 'review' : 'setup';
-    $('#avatarBox', el).innerHTML = avatarSVG(state.avatar);
+    if ($('#avatarBox', el).dataset.key !== state.avatar) {
+      $('#avatarBox', el).innerHTML = avatarHTML(state.avatar);
+      $('#avatarBox', el).dataset.key = state.avatar;
+    }
     $('#avatarBox', el).dataset.state = state.status;
     $('#avName', el).textContent = a.name;
     const labels = { idle: '準備OK', connecting: '接続中…', live: '会話中', ending: '終了処理中…', ended: '終了しました', lost: '接続が切れました' };
@@ -688,14 +693,14 @@ function createMeter() {
       src.connect(an);
       const buf = new Uint8Array(an.fftSize);
       let smooth = 0;
+      const sync = lipSync(() => box.querySelector('.av'));
       const tick = () => {
         an.getByteTimeDomainData(buf);
         let sum = 0;
         for (const v of buf) sum += (v - 128) ** 2;
         const rms = Math.sqrt(sum / buf.length) / 128;
         smooth = smooth * 0.6 + Math.min(1, rms * 6) * 0.4;
-        const mouth = box.querySelector('.mouth');
-        if (mouth) mouth.setAttribute('ry', (3 + smooth * 13).toFixed(1));
+        sync(Math.min(1, rms * 6));
         box.classList.toggle('speaking', smooth > 0.08);
         raf = requestAnimationFrame(tick);
       };
@@ -703,6 +708,7 @@ function createMeter() {
     },
     stop() {
       cancelAnimationFrame(raf);
+      document.querySelectorAll('.av.mouth-open').forEach((av) => av.classList.remove('mouth-open'));
       try { src?.disconnect(); } catch {}
       ctx.close();
     },

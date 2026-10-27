@@ -27,6 +27,12 @@ export function renderSettings(el) {
       </div>
     </section>
 
+    <section class="card form">
+      <h2>🧑‍🎨 アバター</h2>
+      <p class="mini muted">Emma と Oliver の瞬き・口パクの重なり具合を確認・調整できます。</p>
+      <div class="row"><a class="btn btn-ghost" href="#/avatars">アバターの表示を確認</a></div>
+    </section>
+
     <form class="card form" id="goalForm">
       <h2>🎯 学習目標</h2>
       <label>1日の目標 XP

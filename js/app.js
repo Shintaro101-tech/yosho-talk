@@ -5,6 +5,7 @@ import { renderTalk } from './talk.js';
 import { renderWords } from './words.js';
 import { renderPlay } from './play.js';
 import { renderSettings } from './settings.js';
+import { renderAvatarCheck } from './avatar-check.js';
 
 const routes = {
   books: renderBooks,
@@ -13,6 +14,7 @@ const routes = {
   words: renderWords,
   play: renderPlay,
   settings: renderSettings,
+  avatars: renderAvatarCheck,
 };
 
 let cleanup = null;
@@ -25,7 +27,7 @@ function route() {
   view.innerHTML = '';
   view.className = `view view-${name}`;
   cleanup = render(view, params) || null;
-  const navKey = name === 'book' ? 'books' : name;
+  const navKey = name === 'book' ? 'books' : name === 'avatars' ? 'settings' : name;
   $$('.nav a').forEach((a) => a.classList.toggle('active', a.dataset.nav === navKey));
   window.scrollTo(0, 0);
 }

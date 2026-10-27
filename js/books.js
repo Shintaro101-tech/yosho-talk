@@ -131,14 +131,33 @@ export function openBookForm(book, done) {
   openDialog(`
     <form class="form" method="dialog">
       <h2>${book ? '本を編集' : '本を追加'}</h2>
-      <label>タイトル（英語）
+      <details class="search-box" ${book ? '' : 'open'}>
+        <summary>🔍 本を検索して入力${book ? '（表紙の差し替えなど）' : ''}</summary>
         <div class="row">
-          <input name="title" required value="${esc(b.title || '')}" placeholder="e.g. Wonder" autocomplete="off">
-          <button type="button" class="btn" id="olSearch">🔍 検索</button>
+          <select id="olField" aria-label="検索する項目">
+            <option value="q">タイトル・著者</option>
+            <option value="title">タイトル</option>
+            <option value="author">著者名</option>
+          </select>
+          <input id="olQuery" type="search" placeholder="例: Wonder / R. J. Palacio" autocomplete="off">
+          <button type="button" class="btn" id="olSearch">検索</button>
         </div>
-      </label>
-      <div id="olResults" class="ol-results"></div>
-      <label>著者 <input name="author" value="${esc(b.author || '')}"></label>
+        <div id="olResults" class="ol-results"></div>
+        <p class="mini muted">見つからないときは、下の欄に直接入力して登録できます。</p>
+      </details>
+
+      <div class="book-fields">
+        <div class="cover-edit">
+          <div id="coverPreview"></div>
+          <label class="btn btn-sm">📷 画像を選ぶ<input type="file" accept="image/*" id="coverFile" hidden></label>
+          <button type="button" class="btn btn-ghost btn-sm" id="coverUrl">URLで指定</button>
+          <button type="button" class="btn btn-ghost btn-sm danger" id="coverClear">画像を外す</button>
+        </div>
+        <div class="book-main-fields">
+          <label>タイトル <input name="title" required value="${esc(b.title || '')}" placeholder="e.g. Wonder" autocomplete="off"></label>
+          <label>著者 <input name="author" value="${esc(b.author || '')}" placeholder="e.g. R. J. Palacio"></label>
+        </div>
+      </div>
       <input type="hidden" name="cover" value="${esc(b.cover || '')}">
       <div class="grid2">
         <label>ステータス
@@ -164,16 +183,53 @@ export function openBookForm(book, done) {
     </form>`, {
     onOpen: (dlg) => {
       const form = dlg.querySelector('form');
+      const preview = () => {
+        const c = form.cover.value;
+        $('#coverPreview', dlg).innerHTML = cover({ title: form.title.value || '?', cover: c });
+        $('#coverClear', dlg).hidden = !c;
+      };
+      preview();
+      form.title.addEventListener('input', () => { if (!form.cover.value) preview(); });
       form.status.onchange = () => {
         if (form.status.value === 'finished' && !form.finishDate.value) form.finishDate.value = today();
       };
-      $('#olSearch', dlg).onclick = () => searchOpenLibrary(form, $('#olResults', dlg));
-      form.title.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); searchOpenLibrary(form, $('#olResults', dlg)); }
+
+      const search = () => searchOpenLibrary($('#olField', dlg).value, $('#olQuery', dlg).value, $('#olResults', dlg), (d) => {
+        form.title.value = d.title;
+        form.author.value = (d.author_name || []).slice(0, 2).join(', ');
+        if (d.cover_i) form.cover.value = `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg`;
+        preview();
       });
+      $('#olSearch', dlg).onclick = search;
+      $('#olQuery', dlg).addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); search(); }
+      });
+      if (!book) setTimeout(() => $('#olQuery', dlg).focus(), 50);
+
+      $('#coverFile', dlg).onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          form.cover.value = await shrinkImage(file);
+          preview();
+        } catch {
+          toast('この画像は読み込めませんでした', 'error');
+        }
+        e.target.value = '';
+      };
+      $('#coverUrl', dlg).onclick = () => {
+        const url = prompt('表紙画像のURLを入力してください（https://〜）', form.cover.value.startsWith('http') ? form.cover.value : '');
+        if (url === null) return;
+        if (url && !/^https:\/\//.test(url.trim())) { toast('https:// で始まるURLを入力してください', 'error'); return; }
+        form.cover.value = url.trim();
+        preview();
+      };
+      $('#coverClear', dlg).onclick = () => { form.cover.value = ''; preview(); };
     },
     onSubmit: (fd) => {
       const v = Object.fromEntries(fd);
+      v.title = v.title.trim();
+      v.author = v.author.trim();
       v.rating = +v.rating;
       if (v.status === 'finished' && !v.finishDate) v.finishDate = today();
       if (book) updateBook(book.id, v);
@@ -183,30 +239,50 @@ export function openBookForm(book, done) {
   });
 }
 
-async function searchOpenLibrary(form, box) {
-  const q = form.title.value.trim();
+// Resize an uploaded cover to a small JPEG data URL so it fits in localStorage.
+function shrinkImage(file, maxW = 300, maxH = 450) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width, maxH / img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image')); };
+    img.src = url;
+  });
+}
+
+async function searchOpenLibrary(field, query, box, onPick) {
+  const q = query.trim();
   if (!q) return;
   box.innerHTML = `<p class="mini muted">検索中…</p>`;
   try {
-    const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=6&fields=title,author_name,cover_i,first_publish_year,language`;
+    const url = `https://openlibrary.org/search.json?${field}=${encodeURIComponent(q)}&limit=12&fields=key,title,author_name,cover_i,first_publish_year`;
     const res = await fetch(url);
     const j = await res.json();
-    const docs = (j.docs || []).filter((d) => d.cover_i).slice(0, 6);
-    if (!docs.length) { box.innerHTML = `<p class="mini muted">表紙が見つかりませんでした。そのまま登録できます。</p>`; return; }
+    // Books with a cover first, keeping Open Library's relevance order otherwise.
+    const docs = (j.docs || []).map((d, i) => [d, i]).sort((x, y) => (!x[0].cover_i - !y[0].cover_i) || x[1] - y[1]).map(([d]) => d);
+    if (!docs.length) {
+      box.innerHTML = `<p class="mini muted">見つかりませんでした。綴りを変えるか、下の欄に直接入力してください。</p>`;
+      return;
+    }
     box.innerHTML = docs.map((d, i) => `
       <button type="button" class="ol-item" data-i="${i}">
-        <img src="https://covers.openlibrary.org/b/id/${d.cover_i}-S.jpg" alt="">
+        ${d.cover_i ? `<img src="https://covers.openlibrary.org/b/id/${d.cover_i}-S.jpg" alt="" loading="lazy">` : '<span class="ol-noimg">No image</span>'}
         <span><strong>${esc(d.title)}</strong><br><small>${esc((d.author_name || []).join(', '))} ${d.first_publish_year ? `(${d.first_publish_year})` : ''}</small></span>
       </button>`).join('');
     $$('.ol-item', box).forEach((btn) => (btn.onclick = () => {
-      const d = docs[+btn.dataset.i];
-      form.title.value = d.title;
-      form.author.value = (d.author_name || []).slice(0, 2).join(', ');
-      form.cover.value = `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg`;
+      onPick(docs[+btn.dataset.i]);
       $$('.ol-item', box).forEach((x) => x.classList.toggle('picked', x === btn));
     }));
   } catch {
-    box.innerHTML = `<p class="mini muted">検索できませんでした（オフライン？）。そのまま登録できます。</p>`;
+    box.innerHTML = `<p class="mini muted">検索できませんでした（オフライン？）。下の欄に直接入力して登録できます。</p>`;
   }
 }
 

@@ -482,3 +482,47 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
   margin-top: 4px; background: rgba(246, 194, 28, .15); color: var(--yellow); border: 1px solid rgba(246, 194, 28, .4);
   border-radius: 99px; font: inherit; font-size: .72rem; font-weight: 700; padding: 1px 10px; cursor: pointer;
 }
+
+/* after-talk polished phrases */
+.pick-help { margin: -4px 0 6px; }
+.setup-start { display: none; }
+.review-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.count-seg { margin-top: 4px; }
+.polished-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
+.polished-list li { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.polished-list p { margin: 0; }
+.polished-list small { display: inline-block; min-width: 64px; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.you-said s { color: var(--muted); }
+.polished span { font-family: var(--serif); font-size: 1.12rem; }
+.polished mark { background: var(--yellow-soft); color: inherit; border-bottom: 2px solid var(--yellow); padding: 0 2px; border-radius: 3px; }
+.key-phrase { font-size: .9rem; }
+
+/* phones: setup screen → full-screen call → review */
+@media (max-width: 860px) {
+  .setup-start { display: flex; width: 100%; margin-top: 18px; }
+  .talk[data-phase=setup] .talk-main { display: none; }
+  .talk[data-phase=call] .talk-side,
+  .talk[data-phase=review] .talk-side { display: none; }
+
+  .talk[data-phase=call] .talk-main {
+    position: fixed; inset: 0; z-index: 50; background: var(--bg);
+    display: flex; flex-direction: column; gap: 10px;
+    height: 100vh; height: 100dvh;
+    padding: calc(10px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
+  }
+  .talk[data-phase=call] .stage { flex-direction: row; text-align: left; gap: 14px; padding: 12px 14px; margin: 0; flex-shrink: 0; }
+  .talk[data-phase=call] .avatar-box { width: 88px; height: 94px; }
+  .talk[data-phase=call] .avatar-box .avatar-svg { width: 84px; height: 90px; margin-top: 10px; }
+  .talk[data-phase=call] .stage h2 { font-size: 1.25rem; }
+  .talk[data-phase=call] .status-line { justify-content: flex-start; font-size: .8rem; margin: 2px 0 0; }
+  .talk[data-phase=call] .talk-controls { justify-content: flex-start; margin-top: 8px; }
+  .talk[data-phase=call] .talk-controls .btn { padding: 8px 14px; }
+  .talk[data-phase=call] .display { flex: 1; min-height: 0; margin: 0; border-width: 6px; }
+  .talk[data-phase=call] .display-cards { flex: 1; max-height: none; min-height: 0; }
+  .talk[data-phase=call] #review { display: none; }
+
+  .talk[data-phase=review] .talk-main { display: flex; flex-direction: column; }
+  .talk[data-phase=review] .stage { display: none; }
+  .talk[data-phase=review] #review { order: -1; }
+}
+.clock { white-space: nowrap; }

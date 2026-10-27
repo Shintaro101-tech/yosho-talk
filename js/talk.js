@@ -31,20 +31,77 @@ export const LEVELS = {
   C2: { label: 'Proficiency', eiken: '英検1級以上', en: 'C2 (proficiency): talk exactly as with an educated native speaker, including idioms, subtle nuance and abstract ideas' },
 };
 
+// The level the after-talk feedback aims for (one step up; C2 stays C2).
+const NEXT_LEVEL = { A2: 'B1', B1: 'B2', B2: 'C1', C1: 'C2', C2: 'C2' };
+
 let live = null;
 
-function buildInstructions({ book, mode, avatar, level, name }) {
-  const a = AVATARS[avatar];
-  const bookPart = book
+// Escapes text and marks the key phrase inside the polished sentence.
+function highlight(sentence, phrase) {
+  const i = phrase ? sentence.toLowerCase().indexOf(phrase.toLowerCase()) : -1;
+  if (i < 0) return esc(sentence);
+  return `${esc(sentence.slice(0, i))}<mark>${esc(sentence.slice(i, i + phrase.length))}</mark>${esc(sentence.slice(i + phrase.length))}`;
+}
+
+function bookContext(book) {
+  return book
     ? `They chose the book "${book.title}"${book.author ? ` by ${book.author}` : ''}. ${book.status === 'finished'
       ? 'They have finished it.'
       : 'They may not have finished it — never spoil anything beyond what they have read.'}${book.memo ? ` Their own notes (may be Japanese): ${book.memo}` : ''}`
     : 'You do not know yet which book they read — ask them as part of the summary. Never spoil anything beyond what they have read.';
+}
+
+const HOW_TO_TALK = (name) => `HOW TO TALK
+- Speak only English, except a few Japanese words if ${name} is really stuck.
+- Keep each turn short (1-3 sentences) and usually end with one question. Let ${name} do most of the talking.
+- Show real interest; share your own opinion briefly sometimes.
+- When ${name} makes a meaningful mistake, recast it naturally ("Oh, you mean ...?") instead of lecturing.
+- If ${name} asks you to save or remember a word or phrase, delegate it so it is saved to their word book, then confirm briefly.`;
+
+const DISPLAY_RULES = (name) => `THE DISPLAY
+There is a screen next to you that ${name} can see. Use it to make important language visible. Delegate a request to show something on the display (give the exact text to show) whenever:
+- you present discussion questions;
+- you introduce, explain or correct a useful word, phrase or expression;
+- ${name} asks what a word means, how to say something in English, or how to spell something;
+- ${name} asks you to show or write something ("Can you show it on the display?", "Can you write it down?", "Could you put that on the screen?") — show whatever they ask for.
+Keep display text short. You can say "I've put it on the display."`;
+
+function buildPracticeInstructions({ book, avatar, level, name, phrases }) {
+  const a = AVATARS[avatar];
+  const one = phrases.length === 1;
+  const list = phrases.map((p, i) => `${i + 1}. "${p.key_phrase}" — e.g. "${p.polished}" (meaning: ${p.meaning_ja}; ${name} had said: "${p.you_said}")`).join('\n');
+  return `You are ${a.name}, an English conversation partner in "Yosho Talk" (洋書トーク), a learning app linked to the YouTube show "Yosho Radio" (洋書ラジオ).
+Personality: ${a.persona}.
+The learner's name is ${name}. Always call them "${name}".
+${name} is a Japanese speaker whose English level is ${LEVELS[level].en}. These phrases are one step above that level.
+${book ? `Their recent talk was about "${book.title}"${book.author ? ` by ${book.author}` : ''}.` : ''}
+
+TODAY: PHRASE PRACTICE
+${one ? 'This phrase comes' : 'These phrases come'} from feedback on ${name}'s last talk. ${one ? 'It is' : 'They are'} already on the display:
+${list}
+
+FLOW
+1. You speak first. Greet ${name} by name and say: "Let's practice using the ${one ? 'phrase' : 'phrases'} in conversation."
+2. Go over ${one ? 'the phrase' : 'each phrase, one at a time'}: say it clearly, explain briefly when and how to use it, and give one short example.
+3. Ask ${name} if they have any questions about the ${one ? 'phrase' : 'phrases'}, and answer them.
+4. When ${name} has no more questions, ask several natural questions (3-5${one ? '' : ', covering every phrase'}), one at a time, that invite ${name} to answer using the ${one ? 'phrase' : 'phrases'}. Connect the questions to the book and to ${name}'s life.
+   - If ${name} uses the phrase well, praise it specifically.
+   - If they don't use it, encourage them gently ("Could you try using '...' in your answer?").
+   - If they use it slightly wrong, model the correct version and let them try again.
+5. Finish with a short, warm wrap-up of how they did.
+
+${DISPLAY_RULES(name)}
+
+${HOW_TO_TALK(name)}`;
+}
+
+function buildInstructions({ book, mode, avatar, level, name }) {
+  const a = AVATARS[avatar];
   return `You are ${a.name}, an English conversation partner in "Yosho Talk" (洋書トーク), a learning app linked to the YouTube show "Yosho Radio" (洋書ラジオ), where two English teachers talk about English-language books.
 Personality: ${a.persona}.
 The learner's name is ${name}. Always call them "${name}" — in your greeting and naturally now and then.
-The learner is a Japanese speaker. Level: ${LEVELS[level].en}.
-${bookPart}
+The learner is a Japanese speaker whose English level is ${LEVELS[level].en}. Adjust your English to that level.
+${bookContext(book)}
 
 CONVERSATION FLOW
 1. You speak first. Greet ${name} by name, warmly and briefly.
@@ -52,20 +109,9 @@ CONVERSATION FLOW
 3. Then continue with today's theme, building on what they told you in the summary:
 ${MODES[mode].en}
 
-THE DISPLAY
-There is a screen next to you that ${name} can see. Use it to make important language visible. Delegate a request to show something on the display (give the exact text to show) whenever:
-- you present discussion questions;
-- you introduce, explain or correct a useful word, phrase or expression;
-- ${name} asks what a word means, how to say something in English, or how to spell something;
-- ${name} asks you to show or write something ("Can you show it on the display?", "Can you write it down?", "Could you put that on the screen?") — show whatever they ask for.
-Keep display text short. You can say "I've put it on the display."
+${DISPLAY_RULES(name)}
 
-HOW TO TALK
-- Speak only English, except a few Japanese words if ${name} is really stuck.
-- Keep each turn short (1-3 sentences) and usually end with one question. Let ${name} do most of the talking.
-- Show real interest; share your own opinion briefly sometimes.
-- When ${name} makes a meaningful mistake, recast it naturally ("Oh, you mean ...?") instead of lecturing.
-- If ${name} asks you to save or remember a word or phrase, delegate it so it is saved to their word book, then confirm briefly.`;
+${HOW_TO_TALK(name)}`;
 }
 
 const BACKEND_INSTRUCTIONS = `You are the backend helper for "Yosho Talk", an English book-discussion app for Japanese learners. The voice partner delegates tasks to you. You have two functions:
@@ -158,6 +204,8 @@ export function renderTalk(el, [bookIdParam]) {
     shown: [],
     startedAt: 0,
     muted: false,
+    practice: null, // phrases being practised, or null for a normal talk
+    reviewing: false,
   };
   let meter = null;
   let timer = null;
@@ -198,7 +246,8 @@ export function renderTalk(el, [bookIdParam]) {
           </button>`).join('')}
       </div>
 
-      <h3 class="pick-title">英語レベル</h3>
+      <h3 class="pick-title">あなたの英語レベル</h3>
+      <p class="mini muted pick-help">アバターがあなたのレベルに合わせて話します</p>
       <div class="opt-list">
         ${Object.entries(LEVELS).map(([k, l]) => `
           <button class="opt ${k === state.level ? 'on' : ''}" data-level="${k}" ${dis}>
@@ -218,8 +267,11 @@ export function renderTalk(el, [bookIdParam]) {
       <div class="saved-box">
         <h3>このトークで保存した語 <small class="muted">${state.saved.length}</small></h3>
         <ul class="chips">${state.saved.map((v) => `<li title="${esc(v.meaning)}">${esc(v.term)}</li>`).join('')}</ul>
-      </div>` : ''}`;
+      </div>` : ''}
+
+      <button class="btn btn-primary btn-lg setup-start" id="setupStart" ${dis}>🎙️ トークを始める</button>`;
     if (locked) return;
+    $('#setupStart', setup).onclick = () => start();
     $('#editName', setup).onclick = async () => { await askUserName(); drawSetup(); };
     $('#unlinkBook', setup)?.addEventListener('click', () => { state.bookId = ''; drawSetup(); });
     $$('[data-av]', setup).forEach((b) => (b.onclick = () => {
@@ -242,35 +294,37 @@ export function renderTalk(el, [bookIdParam]) {
 
   function drawStage() {
     const a = AVATARS[state.avatar];
-    $('.talk', el).classList.toggle('in-call', ['connecting', 'live', 'lost', 'ending'].includes(state.status));
+    // Phase drives the phone layout: setup screen → full-screen call → review.
+    const inCall = ['connecting', 'live', 'lost', 'ending'].includes(state.status);
+    const talkEl = $('.talk', el);
+    talkEl.classList.toggle('in-call', inCall);
+    talkEl.dataset.phase = inCall ? 'call' : state.reviewing ? 'review' : 'setup';
     $('#avatarBox', el).innerHTML = avatarSVG(state.avatar);
     $('#avatarBox', el).dataset.state = state.status;
     $('#avName', el).textContent = a.name;
-    const labels = { idle: '準備OK', connecting: '接続中…', live: '会話中 — 英語で話しかけてください', ending: '終了処理中…', ended: '終了しました', lost: '接続が切れました' };
+    const labels = { idle: '準備OK', connecting: '接続中…', live: '会話中', ending: '終了処理中…', ended: '終了しました', lost: '接続が切れました' };
     $('#statusText', el).textContent = labels[state.status] || state.status;
     $('#statusDot', el).className = `status-dot ${state.status}`;
     const c = $('#controls', el);
     if (state.status === 'idle' || state.status === 'ended') {
       c.innerHTML = `<button class="btn btn-primary btn-lg" id="start">🎙️ トークを始める</button>`;
-      $('#start', c).onclick = start;
+      $('#start', c).onclick = () => start();
     } else if (state.status === 'live' || state.status === 'connecting' || state.status === 'lost') {
       c.innerHTML = `
         <button class="btn" id="mute">${state.muted ? '🔇 ミュート中' : '🎤 マイクON'}</button>
-        <button class="btn" id="hint" title="言葉に詰まったとき">💡 ヒント</button>
-        <button class="btn" id="slow" title="ゆっくり・簡単に">🐢 ゆっくり</button>
         <button class="btn btn-danger" id="stop">■ 終了</button>`;
       $('#mute', c).onclick = () => { state.muted = !state.muted; live?.setMuted(state.muted); drawStage(); };
-      $('#hint', c).onclick = () => appendInstruction('The learner pressed the HINT button: they are stuck. Rephrase your last question more simply and show two short example sentence starters on the display.');
-      $('#slow', c).onclick = () => appendInstruction('The learner asked you to speak more slowly and use simpler words from now on.');
       $('#stop', c).onclick = () => stop();
     } else {
       c.innerHTML = '';
     }
   }
 
-  function appendInstruction(content) {
-    live?.send({ type: 'session.instructions.append', event_id: `ins_${Date.now()}`, delegation_id: null, content });
-    toast('アバターに伝えました');
+  function backToSetup() {
+    state.reviewing = false;
+    $('#review', el).innerHTML = '';
+    drawStage();
+    window.scrollTo(0, 0);
   }
 
   // ---- the display screen
@@ -337,27 +391,46 @@ export function renderTalk(el, [bookIdParam]) {
     last.text += delta;
   }
 
-  async function start() {
+  // practice: polished phrases to practise (from the review), or null for a normal talk.
+  async function start(practice = null) {
     if (!s.userName && !(await askUserName())) return;
     drawSetup();
     if (!(await ensurePasscode())) return;
     const book = getBook(state.bookId);
     const name = s.userName;
+    state.practice = practice;
+    state.reviewing = false;
     state.turns = [];
     state.saved = [];
     state.shown = [];
     state.muted = false;
+    if (practice) {
+      // Put the phrases on the display straight away; no need to wait for the avatar.
+      state.shown.push({
+        heading: practice.length === 1 ? "Today's phrase" : "Today's phrases",
+        style: 'vocabulary',
+        items: practice.map((p) => ({ text: p.key_phrase, note: `${p.meaning_ja} / ${p.polished}` })),
+      });
+    }
     drawDisplay();
     $('#review', el).innerHTML = '';
     state.status = 'connecting';
     drawSetup();
     drawStage();
+    window.scrollTo(0, 0);
+
+    const instructions = practice
+      ? buildPracticeInstructions({ book, avatar: state.avatar, level: state.level, name, phrases: practice })
+      : buildInstructions({ book, mode: state.mode, avatar: state.avatar, level: state.level, name });
+    const greeting = practice
+      ? `Greet ${name} by name now and say "Let's practice using the ${practice.length === 1 ? 'phrase' : 'phrases'} in conversation." Then go over the ${practice.length === 1 ? 'phrase' : 'phrases'} on the display.`
+      : `Greet ${name} by name now, warmly, and ask for a short summary of what they have read so far${book ? ` of "${book.title}"` : ' (and which book it is)'}.`;
 
     meter = createMeter();
     live = new LiveSession({
       session: {
         model: 'gpt-live-1',
-        instructions: buildInstructions({ book, mode: state.mode, avatar: state.avatar, level: state.level, name }),
+        instructions,
         audio: { output: { voice: AVATARS[state.avatar].voice } },
         delegation: {
           type: 'responses',
@@ -374,12 +447,7 @@ export function renderTalk(el, [bookIdParam]) {
           state.startedAt = Date.now();
           timer = setInterval(() => ($('#clock', el).textContent = formatDuration((Date.now() - state.startedAt) / 1000)), 1000);
           // Kick off the conversation: the avatar greets the learner by name first.
-          live.send({
-            type: 'session.commentary.append',
-            event_id: `greet_${Date.now()}`,
-            delegation_id: null,
-            content: `Greet ${name} by name now, warmly, and ask for a short summary of what they have read so far${book ? ` of "${book.title}"` : ' (and which book it is)'}.`,
-          });
+          live.send({ type: 'session.commentary.append', event_id: `greet_${Date.now()}`, delegation_id: null, content: greeting });
         }
         if (st === 'ended') return;
         state.status = st;
@@ -437,113 +505,163 @@ export function renderTalk(el, [bookIdParam]) {
       return;
     }
     const book = getBook(state.bookId);
+    const practice = state.practice;
     const talk = addTalk({
       bookId: state.bookId || null,
       bookTitle: book?.title || '',
-      mode: state.mode,
-      modeLabel: MODES[state.mode].label,
+      mode: practice ? 'practice' : state.mode,
+      modeLabel: practice ? 'フレーズ練習' : MODES[state.mode].label,
       avatarName: AVATARS[state.avatar].name,
       level: state.level,
       durationSec,
       turns: state.turns,
       display: state.shown,
       savedTerms: state.saved.map((v) => v.term),
+      ...(practice ? { practiced: practice.map((p) => p.key_phrase) } : {}),
     });
-    if (durationSec >= 30) addXP(Math.max(5, Math.round((durationSec / 60) * 10)), `${formatDuration(durationSec)}トーク`);
+    if (durationSec >= 30) addXP(Math.max(5, Math.round((durationSec / 60) * 10)), `${formatDuration(durationSec)}${practice ? 'フレーズ練習' : 'トーク'}`);
     if (silent) return;
+    state.reviewing = true;
     drawSetup();
     drawStage();
-    drawReview(talk);
+    if (practice) drawPracticeReview(talk, practice);
+    else drawReview(talk);
+    window.scrollTo(0, 0);
   }
+
+  const backBtn = `<button class="btn btn-ghost back-setup" data-back>← 最初の画面へ</button>`;
 
   function drawReview(talk) {
     const box = $('#review', el);
+    const from = talk.level;
+    const to = NEXT_LEVEL[from] || 'C2';
+    let count = Math.min(3, Math.max(1, Number(s.feedbackCount) || 2));
     box.innerHTML = `
       <div class="card review-card">
         <h2>おつかれさまでした！ 🎉</h2>
-        <p class="muted">${formatDuration(talk.durationSec)} 話しました。会話から覚えたい単語・フレーズを AI に選んでもらいましょう。</p>
-        <button class="btn btn-primary" id="extract">✨ 単語・フレーズを抽出＆フィードバック</button>
+        <p class="muted">${formatDuration(talk.durationSec)} 話しました。</p>
+        <h3>ワンランク上の表現 <span class="badge">${from === to ? 'C2 · より洗練された表現' : `${from} → ${to}`}</span></h3>
+        <p class="mini muted">あなたの発言を、${from === to ? 'さらに洗練された' : `${to} レベルの`}表現に磨き上げます。いくつ受け取りますか？</p>
+        <div class="seg count-seg" id="countSeg">
+          ${[1, 2, 3].map((n) => `<button type="button" data-n="${n}" class="${n === count ? 'on' : ''}">${n}つ</button>`).join('')}
+        </div>
+        <div class="review-actions">
+          <button class="btn btn-primary" id="extract">✨ フィードバックを受け取る</button>
+        </div>
         <div id="extracted"></div>
+        <div class="review-actions">${backBtn}</div>
       </div>`;
+    $$('[data-n]', box).forEach((b) => (b.onclick = () => {
+      count = s.feedbackCount = Number(b.dataset.n);
+      save();
+      $$('[data-n]', box).forEach((x) => x.classList.toggle('on', x === b));
+    }));
+    $('[data-back]', box).onclick = backToSetup;
     $('#extract', box).onclick = async (e) => {
       e.target.disabled = true;
       e.target.textContent = '分析中…';
+      $$('[data-n]', box).forEach((x) => (x.disabled = true));
       try {
-        const result = await extract(talk);
-        talk.feedback = result;
+        const result = await polish(talk, count, to);
+        talk.feedback = { ...result, target: to };
         save();
-        drawExtracted(result, $('#extracted', box));
-        e.target.remove();
+        $('#countSeg', box).remove();
+        box.querySelector('.mini.muted').remove();
+        e.target.parentElement.remove();
+        drawPolished(talk.feedback, $('#extracted', box));
       } catch (err) {
-        toast(`抽出に失敗しました: ${err.message}`, 'error');
+        toast(`フィードバックの作成に失敗しました: ${err.message}`, 'error');
         e.target.disabled = false;
         e.target.textContent = '✨ もう一度試す';
+        $$('[data-n]', box).forEach((x) => (x.disabled = false));
       }
     };
   }
 
-  function drawExtracted(r, box) {
-    box.innerHTML = `
-      <div class="feedback"><p>${esc(r.feedback_ja)}</p></div>
-      ${r.corrections.length ? `
-        <h3>より自然な言い方</h3>
-        <ul class="corrections">
-          ${r.corrections.map((c, i) => `
-            <li>
-              <p><s>${esc(c.you_said)}</s></p>
-              <p>→ <strong>${esc(c.better)}</strong> <button class="btn btn-sm" data-corr="${i}">＋単語帳</button></p>
-              <p class="mini muted">${esc(c.why_ja)}</p>
-            </li>`).join('')}
-        </ul>` : ''}
-      <h3>覚えたい単語・フレーズ</h3>
-      <form id="pick">
-        <ul class="pick-list">
-          ${r.items.map((it, i) => `
-            <li><label>
-              <input type="checkbox" name="i" value="${i}" checked>
-              <span><strong>${esc(it.term)}</strong> — ${esc(it.meaning_ja)}<br><em class="mini">${esc(it.example_en)}</em>${it.note_ja ? `<br><small class="muted">${esc(it.note_ja)}</small>` : ''}</span>
-            </label></li>`).join('')}
-        </ul>
-        <button class="btn btn-primary">選んだ語を単語帳に追加</button>
-      </form>`;
-    $('#pick', box).onsubmit = (e) => {
-      e.preventDefault();
-      const picked = new FormData(e.target).getAll('i').map(Number);
-      picked.forEach((i) => {
-        const it = r.items[i];
-        addVocab({ term: it.term, meaning: it.meaning_ja, example: it.example_en, note: it.note_ja, bookId: state.bookId || null, source: 'talk' });
-      });
-      toast(`${picked.length} 語を単語帳に追加しました`, 'success');
-      e.target.querySelector('button').disabled = true;
-    };
-    $$('[data-corr]', box).forEach((b) => (b.onclick = () => {
-      const c = r.corrections[+b.dataset.corr];
-      addVocab({ term: c.better, meaning: c.why_ja, example: '', note: `元の言い方: ${c.you_said}`, bookId: state.bookId || null, source: 'correction' });
+  function phraseCards(list) {
+    return `
+      <ul class="polished-list">
+        ${list.map((p, i) => `
+          <li>
+            ${p.you_said ? `<p class="you-said"><small>あなた</small><s>${esc(p.you_said)}</s></p>` : ''}
+            <p class="polished"><small>Polished</small><span>${highlight(p.polished, p.key_phrase)}</span></p>
+            <p class="key-phrase"><b>${esc(p.key_phrase)}</b> — ${esc(p.meaning_ja)}</p>
+            <p class="mini muted">${esc(p.why_ja)}</p>
+            <button class="btn btn-sm" data-add="${i}">＋単語帳</button>
+          </li>`).join('')}
+      </ul>`;
+  }
+
+  function bindPhraseCards(box, list) {
+    $$('[data-add]', box).forEach((b) => (b.onclick = () => {
+      const p = list[+b.dataset.add];
+      addVocab({ term: p.key_phrase, meaning: p.meaning_ja, example: p.polished, note: p.why_ja, bookId: state.bookId || null, source: 'feedback' });
       b.disabled = true;
+      b.textContent = '✓ 追加しました';
     }));
   }
 
-  async function extract(talk) {
+  function drawPolished(fb, box) {
+    const list = fb.polished;
+    box.innerHTML = `
+      ${fb.feedback_ja ? `<div class="feedback"><p>${esc(fb.feedback_ja)}</p></div>` : ''}
+      ${phraseCards(list)}
+      <div class="review-actions">
+        <button class="btn btn-primary btn-lg" id="practice">🎙️ フレーズを使う練習をする</button>
+      </div>`;
+    bindPhraseCards(box, list);
+    $('#practice', box).onclick = () => start(list);
+  }
+
+  function drawPracticeReview(talk, list) {
+    const box = $('#review', el);
+    box.innerHTML = `
+      <div class="card review-card">
+        <h2>練習おつかれさまでした！ 💪</h2>
+        <p class="muted">${formatDuration(talk.durationSec)} 練習しました。今日のフレーズを単語帳に入れて、くり返し使ってみましょう。</p>
+        ${phraseCards(list)}
+        <div class="review-actions">
+          <button class="btn btn-primary" id="again">🔁 もう一度練習する</button>
+          ${backBtn}
+        </div>
+      </div>`;
+    bindPhraseCards(box, list);
+    $('#again', box).onclick = () => start(list);
+    $('[data-back]', box).onclick = backToSetup;
+  }
+
+  async function polish(talk, count, target) {
     const transcript = talk.turns.map((t) => `${t.role === 'user' ? 'Learner' : 'Partner'}: ${t.text}`).join('\n');
     const str = { type: 'string' };
-    return responsesJSON({
-      instructions: `You are an experienced English teacher for Japanese learners (CEFR ${talk.level}). Analyse the discussion transcript about the book "${talk.bookTitle || 'a book'}".
-1. items: pick 5-10 words or phrases worth learning — expressions the partner used that are useful at this level, or things the learner struggled to say. Prefer collocations, phrasal verbs and book-discussion phrases over single easy words. Give term in base form, natural Japanese meaning, an example sentence (prefer one from the transcript), and a short Japanese usage note (empty string if none).
-2. corrections: up to 5 meaningful errors or unnatural expressions from the LEARNER's lines, with a more natural version and a short Japanese explanation. Speech-recognition glitches are not errors.
-3. feedback_ja: 2-3 warm, specific sentences in Japanese about what went well and one thing to try next time.`,
+    const goal = talk.level === 'C2'
+      ? 'even more polished, sophisticated and idiomatic, like an articulate educated native speaker'
+      : `typical of a CEFR ${target} speaker (one step above their current level, ${talk.level})`;
+    const r = await responsesJSON({
+      instructions: `You are an experienced English teacher for Japanese learners. The learner's English level is CEFR ${talk.level}. Below is a transcript of their spoken conversation${talk.bookTitle ? ` about the book "${talk.bookTitle}"` : ''}.
+Goal: help the learner move up to the next level by giving them EXACTLY ${count} polished ${count === 1 ? 'expression' : 'expressions'}.
+1. polished: choose the ${count} LEARNER ${count === 1 ? 'line' : 'lines'} whose upgrade would help them most. For each:
+   - you_said: what the learner said (short; you may trim it, and ignore speech-recognition glitches).
+   - polished: the same idea rewritten so it is natural and ${goal}. One sentence, keep their meaning.
+   - key_phrase: the reusable chunk inside "polished" that they should learn (a collocation, phrase or sentence frame that appears in "polished" word for word, e.g. "what struck me most was").
+   - meaning_ja: concise Japanese meaning of key_phrase.
+   - why_ja: one short Japanese sentence explaining why it sounds more ${talk.level === 'C2' ? 'refined' : target}.
+   Choose different kinds of phrases; prefer ones they can reuse when talking about books. If the learner said very little, base it on what they were trying to say.
+2. feedback_ja: one or two warm, specific sentences in Japanese about what went well.`,
       input: transcript,
-      schemaName: 'talk_review',
+      schemaName: 'polished_feedback',
       schema: {
         type: 'object',
         additionalProperties: false,
-        required: ['items', 'corrections', 'feedback_ja'],
+        required: ['polished', 'feedback_ja'],
         properties: {
-          items: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['term', 'meaning_ja', 'example_en', 'note_ja'], properties: { term: str, meaning_ja: str, example_en: str, note_ja: str } } },
-          corrections: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['you_said', 'better', 'why_ja'], properties: { you_said: str, better: str, why_ja: str } } },
+          polished: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['you_said', 'polished', 'key_phrase', 'meaning_ja', 'why_ja'], properties: { you_said: str, polished: str, key_phrase: str, meaning_ja: str, why_ja: str } } },
           feedback_ja: str,
         },
       },
     });
+    r.polished = r.polished.slice(0, count);
+    if (!r.polished.length) throw new Error('表現を作れませんでした');
+    return r;
   }
 
   drawSetup();

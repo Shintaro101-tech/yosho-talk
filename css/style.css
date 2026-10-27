@@ -415,7 +415,6 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
 .search-box { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; }
 .search-box summary { cursor: pointer; font-weight: 700; font-size: .9rem; }
 .search-box[open] summary { margin-bottom: 8px; }
-.search-box .row select { width: auto; }
 .search-box .ol-results { margin-top: 8px; max-height: 260px; overflow-y: auto; }
 .search-box .ol-item { background: var(--surface); }
 .ol-noimg { width: 32px; height: 46px; border-radius: 3px; background: var(--surface-2); font-size: .5rem; color: var(--muted); display: grid; place-items: center; text-align: center; flex-shrink: 0; }
@@ -600,3 +599,23 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
 .install-steps li { line-height: 1.5; }
 .install-steps .key { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; font-weight: 700; white-space: nowrap; }
 .install-steps svg { width: 16px; height: 16px; vertical-align: -3px; }
+
+/* book form: search row, date inputs, phone layout */
+.search-row { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+.search-row select { width: auto; }
+.search-row input { min-width: 0; }
+.grid2 > label { min-width: 0; }
+input[type=date] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; min-height: 44px; text-align: left; }
+input[type=date]::-webkit-date-and-time-value { text-align: left; }
+@media (max-width: 600px) {
+  /* 16px stops iPhone zooming into fields */
+  input, select, textarea { font-size: 16px; }
+  .search-row { grid-template-columns: 1fr auto; }
+  .search-row select { grid-column: 1 / -1; width: 100%; }
+  .book-fields { flex-direction: column; align-items: stretch; }
+  .book-main-fields { order: -1; }
+  .cover-edit { flex-direction: row; flex-wrap: wrap; width: auto; align-items: center; gap: 6px 8px; }
+  .cover-edit #coverPreview { margin-right: 6px; }
+  .cover-edit .btn { width: auto; }
+  .dialog .form { padding: 18px 16px; }
+}

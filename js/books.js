@@ -140,7 +140,7 @@ export function openBookForm(book, done) {
       <h2>${book ? '本を編集' : '本を追加'}</h2>
       <details class="search-box" ${book ? '' : 'open'}>
         <summary>🔍 本を検索して入力${book ? '（表紙の差し替えなど）' : ''}</summary>
-        <div class="row">
+        <div class="search-row">
           <select id="olField" aria-label="検索する項目">
             <option value="q">タイトル・著者</option>
             <option value="title">タイトル</option>

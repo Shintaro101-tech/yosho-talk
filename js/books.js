@@ -65,6 +65,9 @@ export function renderBooks(el) {
   return () => unBanner?.();
 }
 
+export function bookCover(b, size = '') {
+  return cover(b, size);
+}
 function cover(b, size = '') {
   return b.cover
     ? `<img class="cover ${size}" src="${esc(b.cover)}" alt="" loading="lazy">`

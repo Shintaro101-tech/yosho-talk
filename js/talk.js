@@ -3,6 +3,7 @@ import { data, save, getBook, addVocab, addTalk, talkUsage, addTalkSeconds, TALK
 import { ensurePasscode } from './api.js';
 import { AVATARS, avatarHTML, avatarKey, lipSync, voiceFor } from './avatars.js';
 import { LiveSession, responsesJSON } from './live.js';
+import { bookCover } from './books.js';
 
 export const MODES = {
   impressions: {
@@ -35,6 +36,15 @@ export const LEVELS = {
 const NEXT_LEVEL = { A2: 'B1', B1: 'B2', B2: 'C1', C1: 'C2', C2: 'C2' };
 
 let live = null;
+
+const STATUS_LABEL = { reading: '読書中', finished: '読了', want: '読みたい' };
+// Books for the talk picker: reading first, then finished (latest first), then want-to-read.
+function talkBooks() {
+  const rank = { reading: 0, finished: 1, want: 2 };
+  return [...data.books].sort((a, b) => (rank[a.status] ?? 3) - (rank[b.status] ?? 3)
+    || String(b.finishDate || b.startDate || '').localeCompare(String(a.finishDate || a.startDate || ''))
+    || (b.createdAt || 0) - (a.createdAt || 0));
+}
 const IDLE_MS = 30_000; // pause the session after this long with nobody speaking
 
 // Escapes text and marks the key phrase inside the polished sentence.
@@ -45,11 +55,58 @@ function highlight(sentence, phrase) {
 }
 
 function bookContext(book) {
-  return book
-    ? `They chose the book "${book.title}"${book.author ? ` by ${book.author}` : ''}. ${book.status === 'finished'
-      ? 'They have finished it.'
-      : 'They may not have finished it — never spoil anything beyond what they have read.'}${book.memo ? ` Their own notes (may be Japanese): ${book.memo}` : ''}`
-    : 'You do not know yet which book they read — ask them as part of the summary. Never spoil anything beyond what they have read.';
+  if (!book) return 'You do not know yet which book they read — ask them as part of the summary. Never spoil anything beyond what they have read.';
+  const status = {
+    finished: 'They have finished it.',
+    reading: 'They are reading it now and have not finished it — never spoil anything beyond what they have read.',
+    want: 'They have NOT started reading it yet (it is on their "want to read" list) — do not reveal anything about the plot beyond the basic premise.',
+  }[book.status] || 'They may not have finished it — never spoil anything beyond what they have read.';
+  return `They chose the book "${book.title}"${book.author ? ` by ${book.author}` : ''}. ${status}${book.memo ? ` Their own notes (may be Japanese): ${book.memo}` : ''}`;
+}
+
+// The latest earlier talk about this book, so the avatar can pick up where they left off.
+function lastTalkAbout(book) {
+  if (!book) return null;
+  const t = data.talks.find((x) => x.bookId === book.id && x.mode !== 'practice' && x.turns?.length);
+  if (!t) return null;
+  const said = t.turns.filter((x) => x.role === 'user').map((x) => x.text.trim()).join(' ').slice(-600);
+  const shown = (t.display || []).map((c) => `${c.heading}: ${c.items.map((i) => i.text).join(' | ')}`).join('; ').slice(0, 400);
+  return { date: t.date, said, shown, terms: (t.savedTerms || []).slice(0, 8).join(', ') };
+}
+
+// How the avatar opens the talk: step 2 of the flow, and the kick-off cue.
+function opening(book, name) {
+  const prev = lastTalkAbout(book);
+  if (!book) {
+    return {
+      step: `Ask ${name} which book they are reading and to give you a short summary of what they have read so far (part of the book or all of it is fine).`,
+      cue: `Greet ${name} by name now, warmly, and ask which book they are reading and for a short summary of what they have read so far.`,
+    };
+  }
+  const title = `"${book.title}"`;
+  if (book.status === 'want') {
+    return {
+      step: `${name} hasn't started ${title} yet. Instead of a summary, ask what made them want to read it and what they already know about it (cover, blurb, reviews, the author). Talk about their expectations and predictions — without spoilers.`,
+      cue: `Greet ${name} by name now, mention that ${title} is on their reading list, and ask what made them want to read it.`,
+    };
+  }
+  if (prev) {
+    return {
+      step: `You talked with ${name} about ${title} before (on ${prev.date}). Briefly recall it in one sentence, then ask ${book.status === 'finished' ? 'how they felt about the rest of the book now that they have finished it' : 'how far they have read since then and to summarise the new part'}.
+What ${name} said last time: ${prev.said || '(little)'}${prev.shown ? `\nOn the display last time: ${prev.shown}` : ''}${prev.terms ? `\nWords they saved: ${prev.terms}` : ''}`,
+      cue: `Greet ${name} by name now, say it's nice to talk about ${title} again, recall last time in a few words, and ask ${book.status === 'finished' ? 'how they found the ending part now that they have finished it' : 'how far they have read since then'}.`,
+    };
+  }
+  if (book.status === 'finished') {
+    return {
+      step: `${name} has finished ${title}. Congratulate them briefly, then ask for a short summary of the story in their own words.`,
+      cue: `Greet ${name} by name now, congratulate them on finishing ${title}, and ask them to sum it up in their own words.`,
+    };
+  }
+  return {
+    step: `${name} is reading ${title}. Ask how far they have got and for a short summary of what has happened so far.`,
+    cue: `Greet ${name} by name now, mention that they are reading ${title}, and ask how far they have got and what has happened so far.`,
+  };
 }
 
 const HOW_TO_TALK = (name) => `HOW TO TALK
@@ -109,8 +166,8 @@ ${bookContext(book)}
 
 CONVERSATION FLOW
 1. You speak first. Greet ${name} by name, warmly and briefly.
-2. Ask ${name} to give you a short summary of what they have read so far (part of the book or all of it is fine)${book ? '' : ', including the title'}. Listen and react to it. If the summary is very short, ask one friendly follow-up question.
-3. Then continue with today's theme, building on what they told you in the summary:
+2. ${opening(book, name).step} Listen and react to it. If the answer is very short, ask one friendly follow-up question.
+3. Then continue with today's theme, building on what they told you:
 ${MODES[mode].en}
 
 ${DISPLAY_RULES(name)}
@@ -211,7 +268,7 @@ export function askUserName() {
 export function renderTalk(el, [bookIdParam]) {
   const s = data.settings;
   const state = {
-    bookId: bookIdParam && getBook(bookIdParam) ? bookIdParam : '',
+    bookId: bookIdParam && getBook(bookIdParam) ? bookIdParam : getBook(s.talkBookId) ? s.talkBookId : '',
     mode: MODES[s.talkMode] ? s.talkMode : 'impressions',
     avatar: avatarKey(s.avatar),
     level: LEVELS[s.level] ? s.level : 'B1',
@@ -264,7 +321,16 @@ export function renderTalk(el, [bookIdParam]) {
         <small>${u.left < 1 ? '今月の上限に達しました' : `残り ${Math.ceil(u.left / 60)}分`} ・ ${u.resetLabel}にリセット</small>
       </div>
       <p class="mini muted hello">${s.userName ? `👋 ${esc(s.userName)} さん` : '呼び名が未登録です'} <button class="link-btn" id="editName" ${dis}>${s.userName ? '変更' : '登録'}</button></p>
-      ${book ? `<p class="talk-book">📖 <b>${esc(book.title)}</b> <button class="link-btn" id="unlinkBook" ${dis} title="本の指定を外す">×</button></p>` : ''}
+
+      <h3 class="pick-title">話す本</h3>
+      ${data.books.length ? `
+      <div class="book-pick" role="listbox" aria-label="話す本">
+        <button class="book-opt ${!book ? 'on' : ''}" data-book="" ${dis}><span class="book-none">📚</span><small>指定しない</small></button>
+        ${talkBooks().map((b) => `
+          <button class="book-opt ${b.id === state.bookId ? 'on' : ''}" data-book="${b.id}" ${dis} title="${esc(b.title)}">
+            ${bookCover(b, 'sm')}<small>${esc(b.title)}</small><em class="st st-${b.status}">${STATUS_LABEL[b.status] || ''}</em>
+          </button>`).join('')}
+      </div>` : '<p class="mini muted">本棚に本を登録すると、ここで話す本を選べます。<a href="#/books">本棚へ</a></p>'}
 
       <h3 class="pick-title">キャラクター</h3>
       <div class="avatar-pick">
@@ -301,7 +367,11 @@ export function renderTalk(el, [bookIdParam]) {
     if (locked) return;
     $('#setupStart', setup).onclick = () => start();
     $('#editName', setup).onclick = async () => { await askUserName(); drawSetup(); };
-    $('#unlinkBook', setup)?.addEventListener('click', () => { state.bookId = ''; drawSetup(); });
+    $$('[data-book]', setup).forEach((b) => (b.onclick = () => {
+      state.bookId = s.talkBookId = b.dataset.book;
+      save();
+      drawSetup();
+    }));
     $$('[data-av]', setup).forEach((b) => (b.onclick = () => {
       state.avatar = s.avatar = b.dataset.av;
       save();
@@ -511,7 +581,7 @@ export function renderTalk(el, [bookIdParam]) {
       : buildInstructions({ book, mode: state.mode, avatar: state.avatar, level: state.level, name });
     let greeting = practice
       ? `Greet ${name} by name now and say "Let's practice using the ${practice.length === 1 ? 'phrase' : 'phrases'} in conversation." Then go over the ${practice.length === 1 ? 'phrase' : 'phrases'} on the display.`
-      : `Greet ${name} by name now, warmly, and ask for a short summary of what they have read so far${book ? ` of "${book.title}"` : ' (and which book it is)'}.`;
+      : opening(book, name).cue;
     if (resume) {
       const transcript = state.turns.map((t) => `${t.role === 'user' ? name : 'You'}: ${t.text}`).join('\n').slice(-8000);
       const shown = state.shown.map((c) => `${c.heading}: ${c.items.map((i) => i.text).join(' | ')}`).join('\n');

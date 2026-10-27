@@ -1,5 +1,6 @@
 import { $, $$, esc, openDialog, speak, toast } from './util.js';
 import { data, addVocab, updateVocab, deleteVocab, getBook } from './store.js';
+import { bookCover } from './books.js';
 
 let query = '';
 let bookFilter = '';
@@ -67,7 +68,7 @@ function wordRow(v) {
       <p class="meaning">${esc(v.meaning)}</p>
       ${v.example ? `<p class="example">${esc(v.example)} <button class="icon-btn sm" data-speak="${esc(v.example)}" aria-label="例文を聞く">🔊</button></p>` : ''}
       ${v.note ? `<p class="mini muted">${esc(v.note)}</p>` : ''}
-      ${book ? `<div class="word-foot"><a class="mini" href="#/book/${book.id}">📖 ${esc(book.title)}</a></div>` : ''}
+      ${book ? `<a class="word-book" href="#/book/${book.id}" title="この語が出てきた本">${bookCover(book, 'xs')}<span>${esc(book.title)}</span></a>` : ''}
     </li>`;
 }
 

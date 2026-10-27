@@ -389,26 +389,28 @@ export function renderTalk(el, [bookIdParam]) {
     if (locked) return;
     $('#setupStart', setup).onclick = () => start();
     $('#editName', setup).onclick = async () => { await askUserName(); drawSetup(); };
+    // Picking only moves the highlight: redrawing would rebuild the cover and face
+    // images, and they flash blank for a moment while they reload.
+    const pickOne = (attr, b) => {
+      $$(`[${attr}]`, setup).forEach((x) => x.classList.toggle('on', x === b));
+      save();
+    };
     $$('[data-book]', setup).forEach((b) => (b.onclick = () => {
       state.bookId = s.talkBookId = b.dataset.book;
-      save();
-      drawSetup();
+      pickOne('data-book', b);
     }));
     $$('[data-av]', setup).forEach((b) => (b.onclick = () => {
       state.avatar = s.avatar = b.dataset.av;
-      save();
-      drawSetup();
+      pickOne('data-av', b);
       drawStage();
     }));
     $$('[data-level]', setup).forEach((b) => (b.onclick = () => {
       state.level = s.level = b.dataset.level;
-      save();
-      drawSetup();
+      pickOne('data-level', b);
     }));
     $$('[data-mode]', setup).forEach((b) => (b.onclick = () => {
       state.mode = s.talkMode = b.dataset.mode;
-      save();
-      drawSetup();
+      pickOne('data-mode', b);
     }));
   }
 

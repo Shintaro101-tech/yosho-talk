@@ -7,6 +7,15 @@ export function renderSettings(el) {
   el.innerHTML = `
     <section class="hero"><div><h1>Settings</h1><p class="muted">設定とデータ管理</p></div></section>
 
+    <form class="card form" id="nameForm">
+      <h2>👋 あなたの呼び名</h2>
+      <p class="mini muted">アバターが会話のなかであなたを呼ぶ名前です（例：Shintaro, Shin, Mr. Horikawa）。</p>
+      <div class="row">
+        <input name="name" maxlength="30" value="${esc(s.userName || '')}" placeholder="Your name" autocomplete="given-name">
+        <button class="btn btn-primary">保存</button>
+      </div>
+    </form>
+
     <section class="card form">
       <h2>🔒 トーク接続</h2>
       <p class="mini muted">トークと単語抽出は、洋書ラジオの中継サーバーを通して OpenAI に接続します。API キーの入力は不要です。初回だけ合言葉が必要です。</p>
@@ -61,6 +70,13 @@ export function renderSettings(el) {
     renderSettings(el);
   };
   $('#forgetPass', el)?.addEventListener('click', () => { setPasscode(''); toast('合言葉を消しました'); renderSettings(el); });
+
+  $('#nameForm', el).onsubmit = (e) => {
+    e.preventDefault();
+    s.userName = e.target.name.value.trim();
+    save();
+    toast('保存しました', 'success');
+  };
 
   $('#goalForm', el).onsubmit = (e) => {
     e.preventDefault();

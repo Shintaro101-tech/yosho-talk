@@ -11,7 +11,7 @@ import { relayPost } from './api.js';
 export class LiveSession {
   constructor({ session, onEvent, onStatus, onRemoteStream, onFunctionCall }) {
     Object.assign(this, { session, onEvent, onStatus, onRemoteStream, onFunctionCall });
-    this.pendingOutputs = new Map(); // delegation_id -> number of function results sent
+    this.delegations = new Map(); // delegation_id -> { running, sent, completed }
     this.closed = false;
   }
 
@@ -88,11 +88,16 @@ export class LiveSession {
   }
 
   // Function calls come from the Responses backend, wrapped in response.event envelopes.
+  // Once the backend response has completed and every call has a result, ask it to continue.
   async handleDelegated(envelope) {
     const inner = envelope.event || {};
-    const delegationId = envelope.delegation_id;
+    const id = envelope.delegation_id;
+    if (!this.delegations.has(id)) this.delegations.set(id, { running: 0, sent: 0, completed: false });
+    const st = this.delegations.get(id);
+
     if (inner.type === 'response.output_item.done' && inner.item?.type === 'function_call') {
       const { call_id, name, arguments: argStr } = inner.item;
+      st.running++;
       let output;
       try {
         const args = JSON.parse(argStr || '{}');
@@ -105,10 +110,19 @@ export class LiveSession {
         event_id: `out_${call_id}`,
         item: { type: 'function_call_output', call_id, output: JSON.stringify(output) },
       });
-      this.pendingOutputs.set(delegationId, (this.pendingOutputs.get(delegationId) || 0) + 1);
+      st.running--;
+      st.sent++;
+    } else if (inner.type === 'response.created') {
+      st.completed = false;
+      return;
+    } else if (inner.type === 'response.completed') {
+      st.completed = true;
+    } else {
+      return;
     }
-    if (inner.type === 'response.completed' && this.pendingOutputs.get(delegationId)) {
-      this.pendingOutputs.delete(delegationId);
+
+    if (st.completed && st.running === 0 && st.sent > 0) {
+      Object.assign(st, { sent: 0, completed: false });
       this.send({ type: 'response.create', event_id: `continue_${Date.now()}` });
     }
   }

@@ -132,14 +132,14 @@ function drawVoices(card, key, stage) {
   box.innerHTML = `
     <h3 class="pick-title">🎙️ 声</h3>
     <ul class="voice-list">
-      ${customs.map((v) => row(v.id, v.name, 'オリジナルの声（イギリス英語）', ' <span class="badge">オリジナル</span>')).join('')}
+      ${customs.map((v) => row(v.id, v.name, 'オリジナルの声', ' <span class="badge">オリジナル</span>')).join('')}
       ${VOICES.map((v) => row(v.id, v.label, `${v.sex}・${v.accent}`, AVATARS[key].voice === v.id ? ' <span class="badge">デフォルト</span>' : '')).join('')}
     </ul>
     <details class="voice-make">
       <summary>＋ 説明文からオリジナルの声を作る</summary>
-      <p class="mini muted">声の特徴を英語で書くと、GPT-Live 用の声が作られます（作成は無料、試聴とトークは通常の会話料金）。下はイギリス英語の${esc(AVATARS[key].name)}向けの例です。</p>
+      <p class="mini muted">声の特徴を英語で書くと、GPT-Live 用の声が作られます（作成は無料、試聴とトークは通常の会話料金）。下は${esc(AVATARS[key].name)}向けの例（${key === 'emma' ? 'アイルランド英語' : 'イギリス英語'}）です。</p>
       <form class="form-inline" data-make>
-        <input name="name" maxlength="60" value="${esc(AVATARS[key].name)} (British)" placeholder="声の名前">
+        <input name="name" maxlength="60" value="${esc(AVATARS[key].name)} (${key === 'emma' ? 'Irish' : 'British'})" placeholder="声の名前">
         <textarea name="prompt" rows="5" maxlength="2000">${esc(VOICE_PROMPTS[key] || '')}</textarea>
         <button class="btn btn-primary btn-sm">声を作る</button>
       </form>

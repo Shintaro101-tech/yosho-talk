@@ -149,7 +149,7 @@ export function openBookForm(book, done) {
             <option value="title">タイトル</option>
             <option value="author">著者名</option>
           </select>
-          <input id="olQuery" type="search" placeholder="例: Wonder / R. J. Palacio" autocomplete="off">
+          <input id="olQuery" type="search" placeholder="例: Wonder / かがみの孤城 / 村上春樹" autocomplete="off">
           <button type="button" class="btn" id="olSearch">検索</button>
         </div>
         <div id="olResults" class="ol-results"></div>
@@ -204,10 +204,10 @@ export function openBookForm(book, done) {
         if (form.status.value === 'finished' && !form.finishDate.value) form.finishDate.value = today();
       };
 
-      const search = () => searchOpenLibrary($('#olField', dlg).value, $('#olQuery', dlg).value, $('#olResults', dlg), (d) => {
+      const search = () => searchBooks($('#olField', dlg).value, $('#olQuery', dlg).value, $('#olResults', dlg), (d) => {
         form.title.value = d.title;
-        form.author.value = (d.author_name || []).slice(0, 2).join(', ');
-        if (d.cover_i) form.cover.value = `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg`;
+        form.author.value = d.author;
+        if (d.cover) form.cover.value = d.cover;
         preview();
       });
       $('#olSearch', dlg).onclick = search;
@@ -268,32 +268,139 @@ function shrinkImage(file, maxW = 300, maxH = 450) {
   });
 }
 
-async function searchOpenLibrary(field, query, box, onPick) {
+// Book search. English titles come from Open Library; queries with Japanese text also
+// search the National Diet Library (国立国会図書館サーチ), with covers from openBD.
+const JA = /[぀-ヿ㐀-鿿]/;
+
+async function searchBooks(field, query, box, onPick) {
   const q = query.trim();
   if (!q) return;
   box.innerHTML = `<p class="mini muted">検索中…</p>`;
-  try {
-    const url = `https://openlibrary.org/search.json?${field}=${encodeURIComponent(q)}&limit=12&fields=key,title,author_name,cover_i,first_publish_year`;
-    const res = await fetch(url);
-    const j = await res.json();
-    // Books with a cover first, keeping Open Library's relevance order otherwise.
-    const docs = (j.docs || []).map((d, i) => [d, i]).sort((x, y) => (!x[0].cover_i - !y[0].cover_i) || x[1] - y[1]).map(([d]) => d);
-    if (!docs.length) {
-      box.innerHTML = `<p class="mini muted">見つかりませんでした。綴りを変えるか、下の欄に直接入力してください。</p>`;
-      return;
-    }
-    box.innerHTML = docs.map((d, i) => `
-      <button type="button" class="ol-item" data-i="${i}">
-        ${d.cover_i ? `<img src="https://covers.openlibrary.org/b/id/${d.cover_i}-S.jpg" alt="" loading="lazy">` : '<span class="ol-noimg">No image</span>'}
-        <span><strong>${esc(d.title)}</strong><br><small>${esc((d.author_name || []).join(', '))} ${d.first_publish_year ? `(${d.first_publish_year})` : ''}</small></span>
-      </button>`).join('');
-    $$('.ol-item', box).forEach((btn) => (btn.onclick = () => {
-      onPick(docs[+btn.dataset.i]);
-      $$('.ol-item', box).forEach((x) => x.classList.toggle('picked', x === btn));
-    }));
-  } catch {
+  const japanese = JA.test(q);
+  const [ndl, ol] = await Promise.all([
+    japanese ? searchNDL(field, q).catch(() => null) : [],
+    searchOpenLibrary(field, q).catch(() => null),
+  ]);
+  if (ndl === null && ol === null) {
     box.innerHTML = `<p class="mini muted">検索できませんでした（オフライン？）。下の欄に直接入力して登録できます。</p>`;
+    return;
   }
+  const docs = [...(ndl || []), ...(ol || [])].slice(0, 20);
+  if (!docs.length) {
+    box.innerHTML = `<p class="mini muted">見つかりませんでした。言葉を変えるか、下の欄に直接入力してください。</p>`;
+    return;
+  }
+  box.innerHTML = docs.map((d, i) => `
+    <button type="button" class="ol-item" data-i="${i}">
+      ${d.thumb ? `<img src="${esc(d.thumb)}" alt="" loading="lazy">` : '<span class="ol-noimg">No image</span>'}
+      <span><strong>${esc(d.title)}</strong><br><small>${esc(d.author)} ${d.year ? `(${esc(d.year)})` : ''}${d.publisher ? ` ・ ${esc(d.publisher)}` : ''}</small></span>
+    </button>`).join('');
+  $$('.ol-item', box).forEach((btn) => (btn.onclick = () => {
+    onPick(docs[+btn.dataset.i]);
+    $$('.ol-item', box).forEach((x) => x.classList.toggle('picked', x === btn));
+  }));
+}
+
+async function searchOpenLibrary(field, q) {
+  const url = `https://openlibrary.org/search.json?${field}=${encodeURIComponent(q)}&limit=12&fields=key,title,author_name,cover_i,first_publish_year`;
+  const j = await (await fetch(url)).json();
+  // Books with a cover first, keeping Open Library's relevance order otherwise.
+  return (j.docs || []).map((d, i) => [d, i]).sort((x, y) => (!x[0].cover_i - !y[0].cover_i) || x[1] - y[1]).map(([d]) => ({
+    title: d.title,
+    author: (d.author_name || []).slice(0, 2).join(', '),
+    year: d.first_publish_year || '',
+    thumb: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-S.jpg` : '',
+    cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : '',
+  }));
+}
+
+// 国立国会図書館サーチ OpenSearch (RSS). Its order is not by relevance, so keep books from
+// Japanese publishers, merge editions of the same title, and put exact title matches first.
+// "タイトル・著者" searches titles and authors (not full text, which brings in unrelated books).
+async function searchNDL(field, q) {
+  const params = field === 'title' ? ['title'] : field === 'author' ? ['creator'] : ['title', 'creator'];
+  const feeds = await Promise.all(params.map((p) =>
+    fetch(`https://ndlsearch.ndl.go.jp/api/opensearch?${p}=${encodeURIComponent(q)}&cnt=80&mediatype=books`).then((r) => r.text())));
+  const DC = 'http://purl.org/dc/elements/1.1/';
+  const XSI = 'http://www.w3.org/2001/XMLSchema-instance';
+  const norm = (s) => s.replace(/[\s　・:：「」『』〈〉<>]/g, '').toLowerCase();
+  const nq = norm(q);
+  const byTitle = new Map();
+  for (const text of feeds) {
+    const xml = new DOMParser().parseFromString(text, 'text/xml');
+    for (const item of xml.getElementsByTagName('item')) {
+      const title = (item.getElementsByTagNameNS(DC, 'title')[0]?.textContent || '').trim();
+      if (!title) continue;
+      const isbn = [...item.getElementsByTagNameNS(DC, 'identifier')]
+        .filter((e) => /ISBN/.test(e.getAttributeNS(XSI, 'type') || ''))
+        .map((e) => e.textContent.replace(/[^0-9X]/gi, ''))[0] || '';
+      // Japanese books only (ISBN 978-4… / 4…): drops translations, DVDs and CDs.
+      if (!(isbn.length === 13 ? isbn.startsWith('9784') : isbn.length === 10 && isbn.startsWith('4'))) continue;
+      const creators = [...item.getElementsByTagNameNS(DC, 'creator')].map((e) => personName(e.textContent)).filter(Boolean);
+      const issued = item.getElementsByTagNameNS('http://purl.org/dc/terms/', 'issued')[0]?.textContent || '';
+      const nt = norm(title);
+      const book = {
+        title, isbn,
+        author: creators.slice(0, 2).join(', '),
+        year: (issued.match(/\d{4}/) || [''])[0],
+        publisher: item.getElementsByTagNameNS(DC, 'publisher')[0]?.textContent || '',
+        rank: nt === nq ? 0 : nt.startsWith(nq) ? 1 : nt.includes(nq) ? 2 : 3,
+      };
+      if (field === 'author' || (field === 'q' && book.rank === 3 && norm(book.author).includes(nq))) book.rank = Math.min(book.rank, 1);
+      // One entry per title + author; keep the newest edition that names its author.
+      const key = `${nt}|${norm(creators[0] || '')}`;
+      const prev = byTitle.get(key);
+      if (!prev || book.year > prev.year) byTitle.set(key, book);
+    }
+  }
+  const authored = new Set([...byTitle.values()].filter((b) => b.author).map((b) => norm(b.title)));
+  const books = [...byTitle.values()].filter((b) => b.author || (b.rank === 0 && !authored.has(norm(b.title))));
+  books.sort((a, b) => a.rank - b.rank || String(b.year).localeCompare(String(a.year)));
+  const top = books.slice(0, 12);
+  await addOpenBDCovers(top);
+  // Ones with a cover first within the same rank.
+  return top.sort((a, b) => a.rank - b.rank || (!a.cover - !b.cover));
+}
+
+// "村上, 春樹, 1949-" → "村上春樹"; "Carver, Raymond, 1938-1988" → "Raymond Carver"
+function personName(s) {
+  const parts = s.split(',').map((x) => x.trim()).filter((x) => x && !/^\d{4}-?(\d{4})?$/.test(x));
+  if (!parts.length) return '';
+  return JA.test(parts[0]) ? parts.slice(0, 2).join('') : parts.slice(0, 2).reverse().join(' ');
+}
+
+// Covers for Japanese books: openBD's cover, else 版元ドットコム's image by ISBN.
+// Each candidate is loaded first, and only covers that actually exist are kept.
+async function addOpenBDCovers(books) {
+  const isbns = books.map((b) => b.isbn).filter(Boolean);
+  if (!isbns.length) return;
+  const fromOpenBD = new Map();
+  try {
+    const j = await (await fetch(`https://api.openbd.jp/v1/get?isbn=${isbns.join(',')}`)).json();
+    for (const r of j || []) if (r?.summary?.cover) fromOpenBD.set(r.summary.isbn, r.summary.cover);
+  } catch { /* covers are optional */ }
+  await Promise.all(books.map(async (b) => {
+    const isbn13 = b.isbn.length === 10 ? isbn10to13(b.isbn) : b.isbn;
+    for (const url of [fromOpenBD.get(b.isbn), `https://www.hanmoto.com/bd/img/${isbn13}.jpg`]) {
+      if (url && (await imageLoads(url))) { b.thumb = b.cover = url; return; }
+    }
+  }));
+}
+
+function imageLoads(src, ms = 4000) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const t = setTimeout(() => resolve(false), ms);
+    img.onload = () => { clearTimeout(t); resolve(img.naturalWidth > 1); };
+    img.onerror = () => { clearTimeout(t); resolve(false); };
+    img.src = src;
+  });
+}
+
+function isbn10to13(isbn10) {
+  const core = `978${isbn10.slice(0, 9)}`;
+  const sum = [...core].reduce((n, d, i) => n + Number(d) * (i % 2 ? 3 : 1), 0);
+  return core + ((10 - (sum % 10)) % 10);
 }
 
 // ---------------------------------------------------------------- detail

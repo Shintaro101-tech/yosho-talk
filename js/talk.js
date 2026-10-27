@@ -30,7 +30,7 @@ export const LEVELS = {
   B1: { label: 'Intermediate', eiken: '英検2級程度', en: 'B1 (intermediate): clear everyday language; explain any less common word' },
   B2: { label: 'Upper-intermediate', eiken: '英検準1級程度', en: 'B2 (upper-intermediate): natural speed and some idioms; occasionally explain nuance' },
   C1: { label: 'Advanced', eiken: '英検1級程度', en: 'C1 (advanced): natural, native-like discussion; challenge their ideas' },
-  C2: { label: 'Proficiency', eiken: '英検1級以上', en: 'C2 (proficiency): talk exactly as with an educated native speaker, including idioms, subtle nuance and abstract ideas' },
+  C2: { label: 'Proficient', eiken: '英検1級以上', en: 'C2 (proficiency): talk exactly as with an educated native speaker, including idioms, subtle nuance and abstract ideas' },
 };
 
 // The level the after-talk feedback aims for (one step up; C2 stays C2).
@@ -331,6 +331,8 @@ export function renderTalk(el, [bookIdParam]) {
     const dis = locked ? 'disabled' : '';
     const u = talkUsage();
     const usedMin = Math.floor(u.used / 60);
+    // Keep the book row where the learner scrolled it (redrawing would reset it).
+    const pickScroll = $('.book-pick', setup)?.scrollLeft || 0;
     setup.innerHTML = `
       <div class="usage ${u.left < 1 ? 'over' : u.left < 600 ? 'low' : ''}">
         <div class="usage-head"><b>今月のトーク</b><span><b>${usedMin}</b> / ${u.limit / 60}分</span></div>
@@ -382,6 +384,8 @@ export function renderTalk(el, [bookIdParam]) {
       </div>` : ''}
 
       <button class="btn btn-primary btn-lg setup-start" id="setupStart" ${dis}>🎙️ トークを始める</button>`;
+    const pick = $('.book-pick', setup);
+    if (pick) pick.scrollLeft = pickScroll;
     if (locked) return;
     $('#setupStart', setup).onclick = () => start();
     $('#editName', setup).onclick = async () => { await askUserName(); drawSetup(); };

@@ -1,15 +1,16 @@
 // Minimal GPT-Live (gpt-live-1) WebRTC client for the browser.
 //
-// GPT-Live has no ephemeral client secrets, so on this static (GitHub Pages) app the
-// browser calls POST /v1/live/sessions directly with the user's own API key.
-// That is OK for personal use only — never ship this to other users with your key.
+// The SDP exchange (POST /v1/live/sessions) goes through our Cloudflare Worker relay,
+// which adds the OpenAI API key. Audio then flows directly between browser and OpenAI.
 //
 // Docs: https://developers.openai.com/api/docs/guides/live
 //       https://developers.openai.com/api/docs/guides/live-delegation
 
+import { relayPost } from './api.js';
+
 export class LiveSession {
-  constructor({ apiKey, apiBase = 'https://api.openai.com', session, onEvent, onStatus, onRemoteStream, onFunctionCall }) {
-    Object.assign(this, { apiKey, apiBase, session, onEvent, onStatus, onRemoteStream, onFunctionCall });
+  constructor({ session, onEvent, onStatus, onRemoteStream, onFunctionCall }) {
+    Object.assign(this, { session, onEvent, onStatus, onRemoteStream, onFunctionCall });
     this.pendingOutputs = new Map(); // delegation_id -> number of function results sent
     this.closed = false;
   }
@@ -46,14 +47,13 @@ export class LiveSession {
 
     let res;
     try {
-      res = await fetch(`${this.apiBase.replace(/\/$/, '')}/v1/live/sessions`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session: this.session, transport: { type: 'webrtc', sdp: this.pc.localDescription.sdp } }),
+      res = await relayPost('/live/sessions', {
+        session: this.session,
+        transport: { type: 'webrtc', sdp: this.pc.localDescription.sdp },
       });
     } catch (err) {
       this.cleanup();
-      throw new Error('OpenAI に接続できませんでした（ネットワークまたはCORS）。設定の「API ベースURL」にプロキシを指定すると解決する場合があります。');
+      throw err;
     }
     if (!res.ok) {
       const body = await res.text();
@@ -151,16 +151,12 @@ function waitForIce(pc, timeoutMs) {
 }
 
 // One-shot Responses API call that returns parsed JSON (structured output).
-export async function responsesJSON({ apiKey, apiBase = 'https://api.openai.com', model, instructions, input, schemaName, schema }) {
-  const res = await fetch(`${apiBase.replace(/\/$/, '')}/v1/responses`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      instructions,
-      input,
-      text: { format: { type: 'json_schema', name: schemaName, schema, strict: true } },
-    }),
+// The model is chosen by the relay (BACKEND_MODEL).
+export async function responsesJSON({ instructions, input, schemaName, schema }) {
+  const res = await relayPost('/responses', {
+    instructions,
+    input,
+    text: { format: { type: 'json_schema', name: schemaName, schema, strict: true } },
   });
   const j = await res.json();
   if (!res.ok) throw new Error(j.error?.message || `HTTP ${res.status}`);

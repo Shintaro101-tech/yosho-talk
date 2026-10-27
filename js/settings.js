@@ -1,36 +1,22 @@
 import { $, esc, toast } from './util.js';
-import { data, save, getApiKey, setApiKey, exportJSON, importJSON, resetAll } from './store.js';
+import { data, save, exportJSON, importJSON, resetAll } from './store.js';
+import { getPasscode, setPasscode, checkPasscode, ensurePasscode } from './api.js';
 
 export function renderSettings(el) {
   const s = data.settings;
-  const key = getApiKey();
   el.innerHTML = `
     <section class="hero"><div><h1>Settings</h1><p class="muted">設定とデータ管理</p></div></section>
 
-    <form class="card form" id="apiForm">
-      <h2>🔑 OpenAI API</h2>
-      <p class="mini muted">トーク（GPT-Live-1）と単語抽出に使います。キーはこのブラウザの中だけに保存され、OpenAI 以外には送信されません。
-      <b>個人利用専用</b>です。このページのURLを他の人と共有しても、キーは共有されません。</p>
-      <label>API キー
-        <div class="row">
-          <input type="password" name="apiKey" value="${esc(key)}" placeholder="sk-..." autocomplete="off">
-          <button type="button" class="btn btn-ghost" id="toggleKey">表示</button>
-        </div>
-      </label>
-      <details>
-        <summary class="mini">詳細設定</summary>
-        <label>バックエンドモデル（単語保存・抽出・フィードバック用）
-          <input name="backendModel" value="${esc(s.backendModel)}">
-        </label>
-        <label>API ベースURL（通常は変更不要。CORS エラー時にプロキシを指定）
-          <input name="apiBase" value="${esc(s.apiBase)}">
-        </label>
-      </details>
+    <section class="card form">
+      <h2>🔒 トーク接続</h2>
+      <p class="mini muted">トークと単語抽出は、洋書ラジオの中継サーバーを通して OpenAI に接続します。API キーの入力は不要です。初回だけ合言葉が必要です。</p>
+      <p>合言葉：<b>${getPasscode() ? '✅ このブラウザに記憶済み' : '未入力'}</b></p>
       <div class="actions-left">
-        <button class="btn btn-primary">保存</button>
-        ${key ? '<button type="button" class="btn btn-ghost danger" id="clearKey">キーを削除</button>' : ''}
+        <button class="btn" id="testConn">🔌 接続テスト</button>
+        <button class="btn btn-ghost" id="changePass">${getPasscode() ? '合言葉を入れ直す' : '合言葉を入力'}</button>
+        ${getPasscode() ? '<button class="btn btn-ghost danger" id="forgetPass">このブラウザから消す</button>' : ''}
       </div>
-    </form>
+    </section>
 
     <form class="card form" id="goalForm">
       <h2>🎯 学習目標</h2>
@@ -45,7 +31,7 @@ export function renderSettings(el) {
 
     <section class="card form">
       <h2>💾 データのバックアップ</h2>
-      <p class="mini muted">データはこのブラウザ（localStorage）に保存されています。ブラウザのデータを消すと失われるので、ときどきエクスポートしてください。別の端末へ移すときもこのファイルを使います（API キーは含まれません）。</p>
+      <p class="mini muted">データはこのブラウザ（localStorage）に保存されています。ブラウザのデータを消すと失われるので、ときどきエクスポートしてください。別の端末へ移すときもこのファイルを使います（合言葉は含まれません）。</p>
       <div class="actions-left">
         <button class="btn" id="export">⬇️ エクスポート</button>
         <label class="btn">⬆️ インポート<input type="file" id="import" accept="application/json" hidden></label>
@@ -62,22 +48,19 @@ export function renderSettings(el) {
       </div>
     </section>`;
 
-  const apiForm = $('#apiForm', el);
-  $('#toggleKey', el).onclick = (e) => {
-    const inp = apiForm.apiKey;
-    inp.type = inp.type === 'password' ? 'text' : 'password';
-    e.target.textContent = inp.type === 'password' ? '表示' : '隠す';
+  $('#testConn', el).onclick = async (e) => {
+    e.target.disabled = true;
+    const r = getPasscode() ? await checkPasscode(getPasscode()) : 'wrong';
+    e.target.disabled = false;
+    if (r === 'ok') toast('接続OK！トークを使えます', 'success');
+    else if (r === 'wrong') { setPasscode(''); if (await ensurePasscode()) toast('接続OK！トークを使えます', 'success'); renderSettings(el); }
+    else toast(r.slice(6), 'error');
   };
-  apiForm.onsubmit = (e) => {
-    e.preventDefault();
-    setApiKey(apiForm.apiKey.value);
-    s.backendModel = apiForm.backendModel.value.trim() || 'gpt-5.5';
-    s.apiBase = apiForm.apiBase.value.trim().replace(/\/$/, '') || 'https://api.openai.com';
-    save();
-    toast('保存しました', 'success');
+  $('#changePass', el).onclick = async () => {
+    if (await ensurePasscode('', true)) toast('保存しました', 'success');
     renderSettings(el);
   };
-  $('#clearKey', el)?.addEventListener('click', () => { setApiKey(''); toast('キーを削除しました'); renderSettings(el); });
+  $('#forgetPass', el)?.addEventListener('click', () => { setPasscode(''); toast('合言葉を消しました'); renderSettings(el); });
 
   $('#goalForm', el).onsubmit = (e) => {
     e.preventDefault();

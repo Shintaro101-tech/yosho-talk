@@ -1,0 +1,18 @@
+name = "yosho-talk-api"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Sites allowed to call this relay (GitHub Pages + local development).
+ALLOWED_ORIGINS = "https://shintaro101-tech.github.io,http://localhost:8765"
+# Model used for saving words during a talk and for the after-talk feedback.
+BACKEND_MODEL = "gpt-5.5"
+
+# 20 requests per minute per IP (slows down passcode guessing).
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 20
+  period = 60

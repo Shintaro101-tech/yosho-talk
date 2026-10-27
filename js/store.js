@@ -4,7 +4,6 @@
 import { uid, today, addDays, toast } from './util.js';
 
 const KEY = 'yoshotalk:data:v1';
-const KEY_API = 'yoshotalk:apikey';
 
 function fresh() {
   return {
@@ -13,11 +12,9 @@ function fresh() {
     talks: [],
     stats: { xp: 0, streak: 0, lastActive: null, log: {} },
     settings: {
-      backendModel: 'gpt-5.5',
       avatar: 'emma',
       level: 'B1',
       dailyGoal: 50,
-      apiBase: 'https://api.openai.com',
     },
   };
 }
@@ -48,10 +45,6 @@ export function save() {
   listeners.forEach((fn) => fn());
 }
 export const onChange = (fn) => listeners.add(fn);
-
-// ---------- API key (kept apart from exported data) ----------
-export const getApiKey = () => localStorage.getItem(KEY_API) || '';
-export const setApiKey = (k) => (k ? localStorage.setItem(KEY_API, k.trim()) : localStorage.removeItem(KEY_API));
 
 // ---------- XP / level / streak ----------
 export function levelInfo(xp = data.stats.xp) {

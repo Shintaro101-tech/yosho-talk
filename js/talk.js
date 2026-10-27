@@ -1,5 +1,6 @@
 import { $, $$, esc, formatDuration, toast } from './util.js';
-import { data, save, getApiKey, getBook, addVocab, addTalk, addXP } from './store.js';
+import { data, save, getBook, addVocab, addTalk, addXP } from './store.js';
+import { ensurePasscode } from './api.js';
 import { AVATARS, avatarSVG } from './avatars.js';
 import { LiveSession, responsesJSON } from './live.js';
 
@@ -196,12 +197,7 @@ export function renderTalk(el, [bookIdParam]) {
   }
 
   async function start() {
-    const apiKey = getApiKey();
-    if (!apiKey) {
-      toast('先に「設定」で OpenAI API キーを入力してください', 'error');
-      location.hash = '#/settings';
-      return;
-    }
+    if (!(await ensurePasscode())) return;
     const book = getBook(state.bookId);
     state.turns = [];
     state.saved = [];
@@ -214,8 +210,6 @@ export function renderTalk(el, [bookIdParam]) {
 
     meter = createMeter();
     live = new LiveSession({
-      apiKey,
-      apiBase: s.apiBase,
       session: {
         model: 'gpt-live-1',
         instructions: buildInstructions(book, state.mode, state.avatar, state.level),
@@ -223,7 +217,6 @@ export function renderTalk(el, [bookIdParam]) {
         delegation: {
           type: 'responses',
           responses: {
-            model: s.backendModel,
             instructions: BACKEND_INSTRUCTIONS,
             tools: [SAVE_TOOL],
             tool_choice: 'auto',
@@ -379,9 +372,6 @@ export function renderTalk(el, [bookIdParam]) {
     const transcript = talk.turns.map((t) => `${t.role === 'user' ? 'Learner' : 'Partner'}: ${t.text}`).join('\n');
     const str = { type: 'string' };
     return responsesJSON({
-      apiKey: getApiKey(),
-      apiBase: s.apiBase,
-      model: s.backendModel,
       instructions: `You are an experienced English teacher for Japanese learners (CEFR ${talk.level}). Analyse the discussion transcript about the book "${talk.bookTitle || 'a book'}".
 1. items: pick 5-10 words or phrases worth learning — expressions the partner used that are useful at this level, or things the learner struggled to say. Prefer collocations, phrasal verbs and book-discussion phrases over single easy words. Give term in base form, natural Japanese meaning, an example sentence (prefer one from the transcript), and a short Japanese usage note (empty string if none).
 2. corrections: up to 5 meaningful errors or unnatural expressions from the LEARNER's lines, with a more natural version and a short Japanese explanation. Speech-recognition glitches are not errors.

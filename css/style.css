@@ -386,7 +386,7 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
   .talk { grid-template-columns: 1fr; }
   .talk-side { order: 2; }
 }
-@media (max-width: 720px) {
+@media (max-width: 900px) {
   .topbar { padding: 8px 16px; }
   .brand-icon { width: 34px; height: 34px; }
   .nav {
@@ -416,3 +416,4 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
 .badge { white-space: nowrap; }
 .choice:disabled { opacity: 1; }
 .choice:disabled:not(.right):not(.wrong) { opacity: .55; }
+.nav a, .brand-name, .brand-sub { white-space: nowrap; }

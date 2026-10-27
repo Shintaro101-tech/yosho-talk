@@ -12,12 +12,14 @@ YouTube「洋書ラジオ」の英語学習用ウェブアプリ（個人利用�
 
 ## 使い方
 
-1. 「設定」で OpenAI API キーを入力（このブラウザの localStorage にだけ保存されます）
-2. 「本棚」で本を追加 → 「この本についてトーク」
+1. 「本棚」で本を追加 →「この本についてトーク」
+2. 初回だけ合言葉を入力（そのブラウザに記憶されます）
 
 データはすべてブラウザ内に保存されます。「設定 › エクスポート」で定期的にバックアップしてください。
 
-> ⚠️ GPT-Live には一時キー（ephemeral key）の仕組みがないため、ブラウザから直接 API キーを使って接続しています。**個人利用専用**です。他の人に使ってもらう場合は、キーをサーバー側に置く構成（例: Cloudflare Workers）が必要です。
+## OpenAI API キーについて
+
+API キーはアプリに含めず、Cloudflare Workers の中継サーバー（[worker/](worker/README.md)）に保管しています。アプリは合言葉を付けて中継サーバーにリクエストし、中継サーバーがキーを付けて OpenAI に送ります。セットアップ手順は [worker/README.md](worker/README.md) を参照してください。
 
 ## ローカルで動かす
 
@@ -25,7 +27,7 @@ YouTube「洋書ラジオ」の英語学習用ウェブアプリ（個人利用�
 python3 -m http.server 8765
 ```
 
-http://localhost:8765 を開く。
+http://localhost:8765 を開く。トークを試すときは、別のターミナルで中継サーバーも起動します（`cd worker && npx wrangler dev --port 8787`）。
 
 ## 構成
 
@@ -35,6 +37,8 @@ http://localhost:8765 を開く。
 index.html
 css/style.css
 js/app.js       ルーター
+js/config.js    中継サーバーの URL
+js/api.js       中継サーバーとの通信・合言葉
 js/store.js     データ保存・XP・間隔反復
 js/books.js     本棚・カレンダー
 js/talk.js      トーク画面
@@ -43,4 +47,5 @@ js/avatars.js   アバター
 js/words.js     単語帳
 js/play.js      ゲーム・ダッシュボード
 js/settings.js  設定
+worker/         Cloudflare Worker（中継サーバー）
 ```

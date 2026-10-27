@@ -2,3 +2,6 @@
 .claude/
 # original brand artwork (resized copies live in assets/)
 洋書ラジオ（*）.png
+worker/node_modules/
+worker/.wrangler/
+worker/.dev.vars

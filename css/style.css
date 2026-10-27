@@ -621,14 +621,7 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
 }
 
 /* live script on the display */
-.display-head-right { display: flex; align-items: center; gap: 8px; }
-.script-toggle {
-  font: inherit; font-size: .68rem; font-weight: 800; letter-spacing: .04em; cursor: pointer;
-  background: rgba(255, 255, 255, .08); color: rgba(244, 241, 232, .75); border: 1px solid rgba(255, 255, 255, .18);
-  border-radius: 99px; padding: 2px 10px;
-}
-.script-toggle.on { background: var(--yellow); color: var(--navy); border-color: var(--yellow); }
-.script { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; max-height: 280px; min-height: 120px; overflow-y: auto; border-bottom: 1px solid rgba(255, 255, 255, .08); }
+.script { padding: 14px; display: flex; flex-direction: column; gap: 8px; max-height: 52vh; min-height: 180px; overflow-y: auto; }
 .s-line { margin: 0; line-height: 1.5; font-size: .98rem; max-width: 92%; padding: 6px 10px; border-radius: 12px; background: rgba(255, 255, 255, .06); }
 .s-line b { display: block; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 1px; }
 .s-assistant b { color: #7DD3A8; }
@@ -636,10 +629,6 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
 .s-user b { color: var(--yellow); }
 .s-wait { margin: auto; color: rgba(244, 241, 232, .6); font-size: .85rem; }
 .stage .btn.on { background: var(--navy); color: #fff; }
-@media (max-width: 860px) {
-  .talk[data-phase=call] .display.with-script .script { flex: 1; max-height: none; min-height: 0; }
-  .talk[data-phase=call] .display.with-script .display-cards { flex: 0 1 auto; max-height: 38%; }
-}
 @media (max-width: 860px) {
   .talk[data-phase=call] .avatar-box { width: 112px; height: 112px; }
   .talk[data-phase=call] .stage { gap: 12px; }
@@ -702,3 +691,21 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
 .hist-link { font-weight: 700; margin-left: 6px; }
 .hist-shortcut { margin: -2px 0 8px; text-align: right; }
 .hist-shortcut a { font-weight: 700; }
+
+/* display tabs: Display (cards) / Script (live transcript) */
+.display-tabs { display: flex; gap: 4px; padding: 8px 10px 0; border-bottom: 1px solid rgba(255, 255, 255, .1); }
+.dtab {
+  position: relative; display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: .8rem; font-weight: 800; letter-spacing: .06em; cursor: pointer;
+  background: none; border: 0; color: rgba(244, 241, 232, .55); padding: 8px 14px; border-radius: 10px 10px 0 0;
+}
+.dtab:hover { color: rgba(244, 241, 232, .85); }
+.dtab.on { background: rgba(255, 255, 255, .09); color: var(--yellow); box-shadow: inset 0 -3px 0 var(--yellow); }
+.dtab small { background: rgba(246, 194, 28, .2); color: var(--yellow); padding: 0 7px; border-radius: 99px; letter-spacing: 0; font-size: .7rem; }
+.dtab.glow { color: var(--yellow); animation: tabGlow 1.2s ease-in-out infinite; }
+@keyframes tabGlow { 0%, 100% { background: rgba(246, 194, 28, .08); } 50% { background: rgba(246, 194, 28, .32); box-shadow: 0 0 16px rgba(246, 194, 28, .55); } }
+.dtab-new { background: var(--yellow); color: var(--navy); font-size: .6rem; font-weight: 900; letter-spacing: .05em; border-radius: 99px; padding: 1px 6px; }
+@media (prefers-reduced-motion: reduce) { .dtab.glow { animation: none; background: rgba(246, 194, 28, .25); } }
+@media (max-width: 860px) {
+  .talk[data-phase=call] .display.on-script .script { flex: 1; max-height: none; min-height: 0; }
+}

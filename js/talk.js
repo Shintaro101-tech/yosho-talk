@@ -65,6 +65,7 @@ There is a screen next to you that ${name} can see. Use it to make important lan
 - you introduce, explain or correct a useful word, phrase or expression;
 - ${name} asks what a word means, how to say something in English, or how to spell something;
 - ${name} asks you to show or write something ("Can you show it on the display?", "Can you write it down?", "Could you put that on the screen?") — show whatever they ask for.
+If ${name} asks to see the conversation itself as text ("Can you show our conversation on the display?", "Can you show the script?"), delegate a request to turn on the live script; delegate turning it off when they ask to hide it. Then say something short like "Sure, it's on the display now."
 Keep display text short. You can say "I've put it on the display."`;
 
 function buildPracticeInstructions({ book, avatar, level, name, phrases }) {
@@ -117,12 +118,14 @@ ${DISPLAY_RULES(name)}
 ${HOW_TO_TALK(name)}`;
 }
 
-const BACKEND_INSTRUCTIONS = `You are the backend helper for "Yosho Talk", an English book-discussion app for Japanese learners. The voice partner delegates tasks to you. You have two functions:
+const BACKEND_INSTRUCTIONS = `You are the backend helper for "Yosho Talk", an English book-discussion app for Japanese learners. The voice partner delegates tasks to you. You have three functions:
 
 show_on_display — the learner can see a display screen. Call it whenever you are asked to show, display, write down or put something on the screen. Use the exact content you were given and keep it concise.
   - style "questions": discussion questions (one question per item, no numbering — the app numbers them).
   - style "vocabulary": words or expressions. text = the English expression; note = a short Japanese meaning, optionally followed by " / " and a short English example.
   - style "note": anything else (a correction, a sentence, a list, a spelling). For a correction, text = the better version and note = a short Japanese explanation.
+
+show_script — call it with show=true when asked to show the conversation itself (the script / transcript / what we are saying) on the display, and show=false when asked to hide it. The app then shows a live transcript; don't write the conversation out yourself.
 
 save_vocabulary — call it once per item when the learner wants a word or phrase saved: term in dictionary/base form, a concise natural Japanese meaning, and a short natural English example (ideally connected to the book or conversation).
 
@@ -141,6 +144,17 @@ const SAVE_TOOL = {
       note_ja: { type: 'string', description: 'Optional short usage note in Japanese.' },
     },
     required: ['term', 'meaning_ja', 'example_en'],
+  },
+};
+
+const SCRIPT_TOOL = {
+  type: 'function',
+  name: 'show_script',
+  description: 'Show or hide the live script (a running transcript of the conversation) on the display.',
+  parameters: {
+    type: 'object',
+    properties: { show: { type: 'boolean', description: 'true to show the script, false to hide it.' } },
+    required: ['show'],
   },
 };
 
@@ -212,6 +226,7 @@ export function renderTalk(el, [bookIdParam]) {
     segStart: 0,
     lastActivity: 0,
     reviewing: false,
+    showScript: false, // live script on the display
   };
   let meter = null;
   let timer = null;
@@ -328,8 +343,10 @@ export function renderTalk(el, [bookIdParam]) {
     } else if (state.status === 'live' || state.status === 'connecting' || state.status === 'lost') {
       c.innerHTML = `
         <button class="btn" id="mute">${state.muted ? '🔇 ミュート中' : '🎤 マイクON'}</button>
+        <button class="btn ${state.showScript ? 'on' : ''}" id="scriptBtn" aria-pressed="${state.showScript}">📝 スクリプト</button>
         <button class="btn btn-danger" id="stop">■ 終了</button>`;
       $('#mute', c).onclick = () => { state.muted = !state.muted; live?.setMuted(state.muted); drawStage(); };
+      $('#scriptBtn', c).onclick = () => setScript(!state.showScript);
       $('#stop', c).onclick = () => stop();
     } else if (state.status === 'paused') {
       c.innerHTML = `
@@ -350,20 +367,10 @@ export function renderTalk(el, [bookIdParam]) {
     window.scrollTo(0, 0);
   }
 
-  // ---- the display screen
+  // ---- the display screen: cards (questions, words, notes) and, when switched on,
+  // the live script of the conversation.
   function drawDisplay() {
-    if (!state.shown.length) {
-      displayEl.innerHTML = `
-        <div class="display-head"><span>📺 DISPLAY</span></div>
-        <div class="display-empty">
-          <p>大事な表現やディスカッション・クエスチョンが、ここに表示されます。</p>
-          <p class="mini">会話中に <b>“Can you show it on the display?”</b> や <b>“Can you write it down?”</b> と頼むと、何でも書いてくれます。<br>
-          <b>“Can you save that word?”</b> と頼むと単語帳に保存されます。</p>
-        </div>`;
-      return;
-    }
-    displayEl.innerHTML = `
-      <div class="display-head"><span>📺 DISPLAY</span><small>${state.shown.length}</small></div>
+    const cards = state.shown.length ? `
       <div class="display-cards">
         ${state.shown.map((c, ci) => `
           <section class="dcard dcard-${esc(c.style)} ${ci === 0 ? 'new' : ''}">
@@ -377,7 +384,25 @@ export function renderTalk(el, [bookIdParam]) {
                 </li>`).join('')}
             ${c.style === 'questions' ? '</ol>' : '</ul>'}
           </section>`).join('')}
+      </div>` : state.showScript ? '' : `
+      <div class="display-empty">
+        <p>大事な表現やディスカッション・クエスチョンが、ここに表示されます。</p>
+        <p class="mini">会話中に <b>“Can you show it on the display?”</b> や <b>“Can you write it down?”</b> と頼むと、何でも書いてくれます。<br>
+        <b>“Can you show our conversation on the display?”</b> と頼むと、会話のスクリプトが流れます。<br>
+        <b>“Can you save that word?”</b> と頼むと単語帳に保存されます。</p>
       </div>`;
+    displayEl.classList.toggle('with-script', state.showScript);
+    displayEl.innerHTML = `
+      <div class="display-head">
+        <span>📺 DISPLAY</span>
+        <span class="display-head-right">
+          ${state.shown.length ? `<small>${state.shown.length}</small>` : ''}
+          <button class="script-toggle ${state.showScript ? 'on' : ''}" data-script-toggle>📝 スクリプト ${state.showScript ? 'ON' : 'OFF'}</button>
+        </span>
+      </div>
+      ${state.showScript ? '<div class="script" id="script" aria-live="polite"></div>' : ''}
+      ${cards}`;
+    $('[data-script-toggle]', displayEl).onclick = () => setScript(!state.showScript);
     $$('[data-save]', displayEl).forEach((b) => (b.onclick = () => {
       const [ci, ii] = b.dataset.save.split(':').map(Number);
       const it = state.shown[ci].items[ii];
@@ -389,6 +414,32 @@ export function renderTalk(el, [bookIdParam]) {
       drawDisplay();
       drawSetup();
     }));
+    if (state.showScript) drawScript(true);
+  }
+
+  function setScript(on) {
+    state.showScript = on;
+    drawDisplay();
+    drawStage();
+    return { ok: true, script: on ? 'shown' : 'hidden' };
+  }
+
+  // Redraws the script; batched to one paint per frame since deltas arrive fast.
+  let scriptFrame = 0;
+  function drawScript(now = false) {
+    if (!state.showScript) return;
+    if (!now) {
+      if (!scriptFrame) scriptFrame = requestAnimationFrame(() => { scriptFrame = 0; drawScript(true); });
+      return;
+    }
+    const box = $('#script', displayEl);
+    if (!box) return;
+    const stick = box.scrollHeight - box.scrollTop - box.clientHeight < 40; // follow only if already at the bottom
+    const who = { user: esc(s.userName || 'You'), assistant: esc(AVATARS[state.avatar].name) };
+    box.innerHTML = state.turns.length
+      ? state.turns.map((t) => `<p class="s-line s-${t.role}"><b>${who[t.role]}</b>${esc(t.text.trim())}</p>`).join('')
+      : '<p class="s-wait">会話が始まると、ここにスクリプトが流れます。</p>';
+    if (stick) box.scrollTop = box.scrollHeight;
   }
 
   function showOnDisplay(args) {
@@ -403,7 +454,7 @@ export function renderTalk(el, [bookIdParam]) {
     return { ok: true, shown: true };
   }
 
-  // Transcript is not shown, but kept for the after-talk feedback.
+  // Kept for the after-talk feedback, and shown on the display when the script is on.
   function addTranscript(role, delta) {
     if (!delta) return;
     let last = state.turns[state.turns.length - 1];
@@ -412,6 +463,7 @@ export function renderTalk(el, [bookIdParam]) {
       state.turns.push(last);
     }
     last.text += delta;
+    drawScript();
   }
 
   // practice: polished phrases to practise (from the review), or null for a normal talk.
@@ -428,6 +480,7 @@ export function renderTalk(el, [bookIdParam]) {
     state.turns = [];
     state.saved = [];
     state.shown = [];
+    state.showScript = false;
     state.muted = false;
     state.elapsedBefore = 0;
     if (practice) {
@@ -478,7 +531,7 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
           type: 'responses',
           responses: {
             instructions: BACKEND_INSTRUCTIONS,
-            tools: [DISPLAY_TOOL, SAVE_TOOL],
+            tools: [DISPLAY_TOOL, SCRIPT_TOOL, SAVE_TOOL],
             tool_choice: 'auto',
             parallel_tool_calls: false,
           },
@@ -510,6 +563,7 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
       },
       onFunctionCall: (fn, args) => {
         if (fn === 'show_on_display') return showOnDisplay(args);
+        if (fn === 'show_script') return setScript(args.show !== false);
         if (fn === 'save_vocabulary') {
           const v = addVocab({ term: args.term, meaning: args.meaning_ja, example: args.example_en, note: args.note_ja, bookId: state.bookId || null, source: 'talk' });
           if (v && !state.saved.includes(v)) state.saved.push(v);

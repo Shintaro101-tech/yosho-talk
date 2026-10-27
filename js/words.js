@@ -1,6 +1,7 @@
 import { $, $$, esc, openDialog, speak, toast } from './util.js';
 import { data, addVocab, updateVocab, deleteVocab, getBook } from './store.js';
 import { bookCover } from './books.js';
+import { openAskBox, closeAskBox } from './askbox.js';
 
 let query = '';
 let bookFilter = '';
@@ -45,13 +46,17 @@ export function renderWords(el) {
     };
     $('#bf', el).onchange = (e) => { bookFilter = e.target.value; draw(); };
     $$('[data-speak]', el).forEach((b) => (b.onclick = () => speak(b.dataset.speak)));
+    $$('[data-ask]', el).forEach((b) => (b.onclick = () => ask.prefill(`「${b.dataset.ask}」について：`)));
     $$('[data-edit]', el).forEach((b) => (b.onclick = () => openWordForm(data.vocab.find((v) => v.id === b.dataset.edit), draw)));
     $$('[data-del]', el).forEach((b) => (b.onclick = () => {
       const v = data.vocab.find((x) => x.id === b.dataset.del);
       if (confirm(`「${v.term}」を削除しますか？`)) { deleteVocab(v.id); draw(); }
     }));
   };
+  // Floating chat for questions about the words (the newest 60 are given as context).
+  const ask = openAskBox({ words: data.vocab.slice(0, 60), level: data.settings.level });
   draw();
+  return closeAskBox;
 }
 
 function wordRow(v) {
@@ -62,6 +67,7 @@ function wordRow(v) {
         <h3>${esc(v.term)}</h3>
         <button class="icon-btn" data-speak="${esc(v.term)}" aria-label="発音を聞く">🔊</button>
         <span class="spacer"></span>
+        <button class="icon-btn" data-ask="${esc(v.term)}" aria-label="この語について質問" title="この語について質問">💬</button>
         <button class="icon-btn" data-edit="${v.id}" aria-label="編集">✏️</button>
         <button class="icon-btn" data-del="${v.id}" aria-label="削除">🗑️</button>
       </div>

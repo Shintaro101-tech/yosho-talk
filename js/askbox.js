@@ -7,8 +7,10 @@ import { responsesText } from './live.js';
 
 let current = null;
 
-// phrases: [{ polished, key_phrase, meaning_ja, why_ja, you_said }]
-export function openAskBox({ phrases, level, bookTitle }) {
+// phrases: feedback phrases [{ polished, key_phrase, meaning_ja, why_ja, you_said }]
+// words: word-book entries [{ term, meaning, example, note }]
+export function openAskBox({ phrases = [], words = [], level, bookTitle }) {
+  const suggestions = phrases.length ? phrases.map((p) => p.key_phrase) : words.map((w) => w.term);
   closeAskBox();
   const history = []; // [{ role, content }]
   const root = document.createElement('div');
@@ -21,13 +23,13 @@ export function openAskBox({ phrases, level, bookTitle }) {
         <button class="icon-btn" data-ask-close aria-label="閉じる">✕</button>
       </header>
       <div class="ask-log" aria-live="polite">
-        <p class="ask-msg ask-ai">ワンランク上の表現について、文法・単語の意味・ニュアンス・ほかの例文など、何でも日本語か英語で聞いてください。</p>
+        <p class="ask-msg ask-ai">${phrases.length ? 'ワンランク上の表現' : '単語帳の単語・フレーズ'}について、文法・意味・ニュアンス・ほかの例文など、何でも日本語か英語で聞いてください。</p>
       </div>
       <div class="ask-suggest">
-        ${phrases.slice(0, 3).map((p) => `<button data-suggest="「${esc(p.key_phrase)}」はどんな場面で使えますか？例文もください。">${esc(p.key_phrase)} の使い方</button>`).join('')}
+        ${suggestions.slice(0, 3).map((t) => `<button data-suggest="「${esc(t)}」はどんな場面で使えますか？例文もください。">${esc(t)} の使い方</button>`).join('')}
       </div>
       <form class="ask-form">
-        <textarea name="q" rows="1" placeholder="例：you've put it down はなぜこの形？" aria-label="質問"></textarea>
+        <textarea name="q" rows="1" placeholder="例：${esc(suggestions[0] || 'この表現')} のニュアンスは？" aria-label="質問"></textarea>
         <button class="btn btn-primary btn-sm" aria-label="送信">送信</button>
       </form>
     </section>`;
@@ -63,11 +65,15 @@ export function openAskBox({ phrases, level, bookTitle }) {
     return p;
   };
 
-  const instructions = `You are a friendly, precise English teacher helping a Japanese learner (CEFR ${level || 'B1'}) understand feedback from an English conversation${bookTitle ? ` about the book "${bookTitle}"` : ''}.
+  const context = phrases.length
+    ? `understand feedback from an English conversation${bookTitle ? ` about the book "${bookTitle}"` : ''}.
 The learner received these polished expressions:
-${phrases.map((p, i) => `${i + 1}. "${p.polished}" — key phrase "${p.key_phrase}" (${p.meaning_ja}). They had said: "${p.you_said}". Why: ${p.why_ja}`).join('\n')}
+${phrases.map((p, i) => `${i + 1}. "${p.polished}" — key phrase "${p.key_phrase}" (${p.meaning_ja}). They had said: "${p.you_said}". Why: ${p.why_ja}`).join('\n')}`
+    : `study the words and phrases in their personal word book (collected from conversations about English books):
+${words.map((w) => `- ${w.term}${w.meaning ? ` (${w.meaning})` : ''}${w.example ? ` e.g. "${w.example}"` : ''}`).join('\n') || '(empty)'}`;
+  const instructions = `You are a friendly, precise English teacher helping a Japanese learner (CEFR ${level || 'B1'}) ${context}
 
-Answer their questions about these expressions, grammar, vocabulary, nuance or usage.
+Answer their questions about these expressions, grammar, vocabulary, nuance or usage — including words that are not in the list.
 - Reply in Japanese unless they write in English. Keep answers short and clear (usually 2-6 sentences), with 1-2 example sentences when helpful.
 - If the question rests on a misunderstanding (for example, calling a present perfect form "progressive"), gently correct it first, then explain.
 - Use **bold** for key words. No headings or tables.

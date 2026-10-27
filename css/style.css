@@ -1,13 +1,13 @@
-/* 洋書トーク — colours follow the 洋書ラジオ brand (mustard yellow + navy). */
+/* 洋書トーク — brand colours (assets/brand): yellow #F6C21C, deep blue #063C4F, cream #FFF9E3. */
 :root {
   --yellow: #F6C21C;
   --yellow-soft: #FCE7A2;
-  --navy: #1F3A5F;
-  --navy-2: #2C4F7C;
-  --bg: #FFF8E7;
+  --navy: #063C4F;
+  --navy-2: #0F5A73;
+  --bg: #FFF9E3;
   --surface: #FFFFFF;
   --surface-2: #FBF3DD;
-  --text: #1E2A3B;
+  --text: #0E2A35;
   --muted: #6B7280;
   --line: #EADFC2;
   --accent: var(--navy);
@@ -15,7 +15,7 @@
   --ok: #2E8B57;
   --ng: #C2410C;
   --danger: #B42318;
-  --shadow: 0 1px 2px rgba(31, 58, 95, .06), 0 6px 20px rgba(31, 58, 95, .08);
+  --shadow: 0 1px 2px rgba(6, 60, 79, .06), 0 6px 20px rgba(6, 60, 79, .08);
   --radius: 16px;
   --font: 'M PLUS Rounded 1c', system-ui, -apple-system, 'Hiragino Sans', sans-serif;
   --serif: 'Fraunces', Georgia, serif;
@@ -67,27 +67,24 @@ p { margin: .3em 0; }
   padding: 10px 20px;
   background: var(--yellow);
   color: var(--navy);
-  box-shadow: 0 2px 0 rgba(31, 58, 95, .12);
+  box-shadow: 0 2px 0 rgba(6, 60, 79, .12);
 }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-.brand-icon { width: 40px; height: 40px; border-radius: 10px; }
-.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-.brand-name { font-weight: 800; font-size: 1.25rem; letter-spacing: .04em; }
-.brand-sub { font-family: var(--serif); font-size: .78rem; font-style: italic; opacity: .85; }
+.brand-logo { display: block; height: 44px; width: auto; }
 .nav { display: flex; gap: 4px; margin-left: auto; }
 .nav a {
   display: flex; align-items: center; gap: 6px;
   padding: 8px 14px; border-radius: 999px;
   text-decoration: none; font-weight: 700; color: var(--navy);
 }
-.nav a:hover { background: rgba(31, 58, 95, .1); }
+.nav a:hover { background: rgba(6, 60, 79, .1); }
 .nav a.active { background: var(--navy); color: #fff; }
 .player-chip {
   display: flex; align-items: center; gap: 8px;
   background: rgba(255, 255, 255, .55); padding: 6px 12px; border-radius: 999px;
   font-weight: 800; font-size: .85rem;
 }
-.chip-bar { width: 56px; height: 6px; border-radius: 9px; background: rgba(31, 58, 95, .18); overflow: hidden; }
+.chip-bar { width: 56px; height: 6px; border-radius: 9px; background: rgba(6, 60, 79, .18); overflow: hidden; }
 .chip-bar span { display: block; height: 100%; background: var(--navy); }
 
 /* ---------- layout ---------- */
@@ -251,8 +248,8 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
   transition: box-shadow .2s;
 }
 .avatar-box .av { width: 100%; height: 100%; }
-.avatar-box[data-state=live] { box-shadow: 0 0 0 4px rgba(31, 58, 95, .25); }
-.avatar-box.speaking { box-shadow: 0 0 0 6px var(--navy), 0 0 30px rgba(31, 58, 95, .4); }
+.avatar-box[data-state=live] { box-shadow: 0 0 0 4px rgba(6, 60, 79, .25); }
+.avatar-box.speaking { box-shadow: 0 0 0 6px var(--navy), 0 0 30px rgba(6, 60, 79, .4); }
 .status-line { font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #9CA3AF; }
 .status-dot.live { background: #16A34A; animation: pulse 1.4s infinite; }
@@ -384,7 +381,7 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
 }
 @media (max-width: 900px) {
   .topbar { padding: 8px 16px; }
-  .brand-icon { width: 34px; height: 34px; }
+  .brand-logo { height: 36px; }
   .nav {
     position: fixed; bottom: 0; left: 0; right: 0; margin: 0; justify-content: space-around;
     background: var(--surface); border-top: 1px solid var(--line); padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
@@ -412,7 +409,7 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
 .badge { white-space: nowrap; }
 .choice:disabled { opacity: 1; }
 .choice:disabled:not(.right):not(.wrong) { opacity: .55; }
-.nav a, .brand-name, .brand-sub { white-space: nowrap; }
+.nav a { white-space: nowrap; }
 
 /* book form: search + manual entry */
 .search-box { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; }
@@ -587,3 +584,19 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
 @media (max-width: 900px) { .yt-link span { display: none; } .yt-link { padding: 6px; margin-left: auto; } .yt-link + .player-chip { margin-left: 8px; } }
 .player-chip { white-space: nowrap; }
 @media (max-width: 900px) { .player-chip { padding: 6px 10px; gap: 6px; } .chip-bar { width: 36px; } }
+
+.brand { flex-shrink: 0; }
+.tagline { margin: 2px 0 0; font-weight: 800; color: var(--navy); }
+@media (prefers-color-scheme: dark) { .tagline { color: var(--yellow); } }
+
+/* add to home screen */
+.install-banner { display: flex; align-items: center; gap: 12px; background: var(--navy); color: #FFF9E3; border-radius: var(--radius); padding: 10px 12px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.install-banner img { width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0; }
+.install-banner p { margin: 0; flex: 1; font-size: .85rem; line-height: 1.35; }
+.install-banner b { color: var(--yellow); }
+.install-banner .btn-primary { background: var(--yellow); border-color: var(--yellow); color: var(--navy); white-space: nowrap; }
+.install-banner .icon-btn { color: #FFF9E3; opacity: .7; }
+.install-steps { margin: 0; padding-left: 1.4em; display: grid; gap: 10px; }
+.install-steps li { line-height: 1.5; }
+.install-steps .key { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; font-weight: 700; white-space: nowrap; }
+.install-steps svg { width: 16px; height: 16px; vertical-align: -3px; }

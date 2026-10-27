@@ -1,6 +1,7 @@
 import { $, esc, toast } from './util.js';
 import { data, save, exportJSON, importJSON, resetAll } from './store.js';
 import { getPasscode, setPasscode, checkPasscode, ensurePasscode } from './api.js';
+import { installApp, isInstalled } from './install.js';
 
 export function renderSettings(el) {
   const s = data.settings;
@@ -15,6 +16,12 @@ export function renderSettings(el) {
         <button class="btn btn-primary">保存</button>
       </div>
     </form>
+
+    <section class="card form">
+      <h2>📲 ホーム画面に追加</h2>
+      <p class="mini muted">${isInstalled() ? '✅ ホーム画面のアプリとして開いています。' : 'スマホのホーム画面に「洋書トーク」のアイコンを置いて、アプリのように開けます。'}</p>
+      ${isInstalled() ? '' : '<div class="row"><button class="btn btn-primary" id="install">📲 ホーム画面に追加</button></div>'}
+    </section>
 
     <section class="card form">
       <h2>🔒 トーク接続</h2>
@@ -45,7 +52,7 @@ export function renderSettings(el) {
     </section>
 
     <section class="card about">
-      <img src="assets/icon.png" alt="洋書ラジオ">
+      <img src="assets/brand/app-icon-192.png" alt="洋書トーク">
       <div>
         <h2>洋書トーク <small class="muted">Read, Talk, Learn</small></h2>
         <p class="mini">YouTube「洋書ラジオ」の英語学習アプリ。本の情報は <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>、トークは OpenAI GPT-Live-1 を利用しています。</p>
@@ -53,6 +60,7 @@ export function renderSettings(el) {
       </div>
     </section>`;
 
+  $('#install', el)?.addEventListener('click', installApp);
   $('#testConn', el).onclick = async (e) => {
     e.target.disabled = true;
     const r = getPasscode() ? await checkPasscode(getPasscode()) : 'wrong';

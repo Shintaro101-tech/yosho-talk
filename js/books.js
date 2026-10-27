@@ -1,5 +1,6 @@
 import { $, $$, esc, formatDate, formatDuration, openDialog, stars, today, toast } from './util.js';
 import { data, addBook, updateBook, deleteBook, getBook } from './store.js';
+import { installBanner } from './install.js';
 
 const STATUS = {
   want: { label: '読みたい', cls: 'st-want' },
@@ -13,13 +14,16 @@ let calMonth = today().slice(0, 7);
 
 // ---------------------------------------------------------------- list + calendar
 export function renderBooks(el) {
+  let unBanner = null;
   const draw = () => {
     const books = data.books.filter((b) => filter === 'all' || b.status === filter);
     const finishedThisYear = data.books.filter((b) => b.status === 'finished' && (b.finishDate || '').startsWith(today().slice(0, 4))).length;
     el.innerHTML = `
+      <div id="installSlot"></div>
       <section class="hero">
         <div>
           <h1>My Bookshelf</h1>
+          <p class="tagline">読んだ本を、英語で話そう。</p>
           <p class="muted">今年の読了 <strong>${finishedThisYear}</strong> 冊 ・ 登録 <strong>${data.books.length}</strong> 冊</p>
         </div>
         <button class="btn btn-primary" id="addBook">＋ 本を追加</button>
@@ -37,13 +41,15 @@ export function renderBooks(el) {
       </div>
       <div id="shelf"></div>`;
 
+    unBanner?.();
+    unBanner = installBanner($('#installSlot', el));
     const shelf = $('#shelf', el);
     if (viewMode === 'calendar') drawCalendar(shelf, draw);
     else if (!books.length) {
       shelf.innerHTML = data.books.length
         ? `<p class="empty">この条件の本はありません。</p>`
         : `<div class="empty-state">
-             <img src="assets/banner.jpg" alt="">
+             <img src="assets/brand/banner.png" alt="洋書トーク — 読んだ本を、英語で話そう。">
              <h2>最初の1冊を登録しよう</h2>
              <p>読んだ本・読んでいる本を追加すると、その本についてアバターと英語でトークできます。</p>
            </div>`;
@@ -56,6 +62,7 @@ export function renderBooks(el) {
     $$('[data-filter]', el).forEach((b) => (b.onclick = () => { filter = b.dataset.filter; draw(); }));
   };
   draw();
+  return () => unBanner?.();
 }
 
 function cover(b, size = '') {

@@ -5,6 +5,7 @@ import { renderTalk } from './talk.js';
 import { renderWords } from './words.js';
 import { renderSettings } from './settings.js';
 import { renderAvatarCheck } from './avatar-check.js';
+import './install.js'; // listens for the install prompt from page load
 
 const routes = {
   books: renderBooks,

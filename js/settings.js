@@ -35,12 +35,6 @@ export function renderSettings(el) {
     </section>
 
     <section class="card form">
-      <h2>🧑‍🎨 アバター</h2>
-      <p class="mini muted">アバターの声を選んだり（試聴つき）、瞬き・口パクの重なり具合を確認したりできます。</p>
-      <div class="row"><a class="btn btn-ghost" href="#/avatars">声の選択・表示の確認</a></div>
-    </section>
-
-    <section class="card form">
       <h2>💾 データのバックアップ</h2>
       <p class="mini muted">データはこのブラウザ（localStorage）に保存されています。ブラウザのデータを消すと失われるので、ときどきエクスポートしてください。別の端末へ移すときもこのファイルを使います（合言葉は含まれません）。</p>
       <div class="actions-left">

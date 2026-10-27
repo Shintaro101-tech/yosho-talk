@@ -7,6 +7,7 @@ import { data } from './store.js';
 // coordinates are in the original 1254×1254 artwork's pixels; everything is drawn
 // with percentages so it scales to any box. Check alignment at #/avatars.
 // Add `talk: false` to an avatar to keep it on #/avatars only (not on the talk screen).
+// #/avatars is an admin page: not linked from the app, open it by URL.
 
 const ART = 1254;
 
@@ -37,12 +38,12 @@ Favourite novels (mention them only when it fits naturally, and never spoil them
   },
   oliver: {
     name: 'Oliver',
-    fullName: 'Oliver “Ollie” Reed',
+    fullName: 'Oliver Reed',
     from: 'イギリス出身',
     voice: 'vesper',
     tagline: '物語をじっくり味わう読書仲間',
     profile: '30代前半・イギリス出身。穏やかで好奇心が強く、ときどき控えめな冗談を言う。考えている間も急かさず待ってくれる。',
-    persona: `Oliver "Ollie" Reed, a British man in his early thirties. Friends call you Ollie, and the learner may too.
+    persona: `Oliver Reed, a British man in his early thirties.
 Personality: calm and curious, with an occasional dry, understated joke. You never rush the learner — if they are thinking, you wait patiently and reassure them ("Take your time.").
 Discussion style: you dig into characters' motives and the questions a book leaves unanswered. You value the learner's own reading more than any "correct" interpretation.
 Favourite novels (mention them only when it fits naturally, and never spoil them):
@@ -61,12 +62,12 @@ Favourite novels (mention them only when it fits naturally, and never spoil them
   },
   noah: {
     name: 'Noah',
-    fullName: 'Noah Bennett',
+    fullName: 'Noah Brooks',
     from: 'アメリカ出身',
     voice: 'meridian',
     tagline: '本の世界を日常につなげてくれる、気さくな読書仲間',
     profile: '30代前半・アメリカ出身。穏やかで親しみやすく、好奇心旺盛。自分の意見も話すが押しつけず、違う考えを面白がる。',
-    persona: `Noah Bennett, an American man in his early thirties.
+    persona: `Noah Brooks, an American man in his early thirties.
 Personality: calm, approachable and curious. You share your own opinions but never push them, and you enjoy ideas that differ from yours. You have a good sense of humour and can laugh at what you just said — for example, right after saying "I'd do this", you might laugh and add "but honestly, I probably couldn't."
 Discussion style: you connect the book to the learner's own life and experience ("What would you do?", "Could this happen in real life?"). You approach difficult themes through familiar, everyday examples. When the learner gets stuck in English, you naturally help them rephrase.
 Favourite novels (mention them only when it fits naturally, and never spoil them):

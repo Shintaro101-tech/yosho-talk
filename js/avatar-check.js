@@ -10,6 +10,8 @@ import { LiveSession } from './live.js';
 import { createMeter } from './talk.js';
 
 const PARTS = { eyes: '目（閉じ）', mouth: '口（開き）' };
+const ACCENT_LABEL = { emma: 'アイルランド英語', oliver: 'イギリス英語', noah: 'アメリカ英語', chloe: 'アメリカ英語' };
+const ACCENT_NAME = { emma: 'Irish', oliver: 'British', noah: 'American', chloe: 'American' };
 
 let preview = null; // the voice preview playing now: { live, meter, button, timers }
 const FIELDS = ['x', 'y', 'w', 'h'];
@@ -22,7 +24,7 @@ export function renderAvatarCheck(el) {
       <section class="card av-check" data-key="${k}">
         <div class="av-check-stage" data-stage></div>
         <div class="av-check-side">
-          <h2>${esc(a.fullName)} <span class="from">${esc(a.from)}</span></h2>
+          <h2>${esc(a.fullName)} <span class="from">${esc(a.from)}</span>${a.talk === false ? ' <span class="badge">準備中（トークには未登場）</span>' : ''}</h2>
           <p class="mini muted">${esc(a.profile)}</p>
           <div class="voice-box" data-voices></div>
           <h3 class="pick-title">表示の確認</h3>
@@ -126,7 +128,7 @@ function drawVoices(card, key, stage) {
   const row = (id, title, sub, extra = '') => `
     <li class="voice-row ${id === current ? 'on' : ''}">
       <label><input type="radio" name="voice-${key}" value="${esc(id)}" ${id === current ? 'checked' : ''}>
-        <span><b>${esc(title)}</b>${extra}<small>${esc(sub)}</small></span></label>
+        <span><b>${esc(title)}${extra}</b><small>${esc(sub)}</small></span></label>
       <button class="btn btn-sm" data-play="${esc(id)}">▶ 試聴</button>
     </li>`;
   box.innerHTML = `
@@ -137,9 +139,9 @@ function drawVoices(card, key, stage) {
     </ul>
     <details class="voice-make">
       <summary>＋ 説明文からオリジナルの声を作る</summary>
-      <p class="mini muted">声の特徴を英語で書くと、GPT-Live 用の声が作られます（作成は無料、試聴とトークは通常の会話料金）。下は${esc(AVATARS[key].name)}向けの例（${key === 'emma' ? 'アイルランド英語' : 'イギリス英語'}）です。</p>
+      <p class="mini muted">声の特徴を英語で書くと、GPT-Live 用の声が作られます（作成は無料、試聴とトークは通常の会話料金）。下は${esc(AVATARS[key].name)}向けの例（${ACCENT_LABEL[key]}）です。</p>
       <form class="form-inline" data-make>
-        <input name="name" maxlength="60" value="${esc(AVATARS[key].name)} (${key === 'emma' ? 'Irish' : 'British'})" placeholder="声の名前">
+        <input name="name" maxlength="60" value="${esc(AVATARS[key].name)} (${ACCENT_NAME[key]})" placeholder="声の名前">
         <textarea name="prompt" rows="5" maxlength="2000">${esc(VOICE_PROMPTS[key] || '')}</textarea>
         <button class="btn btn-primary btn-sm">声を作る</button>
       </form>

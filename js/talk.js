@@ -253,7 +253,7 @@ export function renderTalk(el, [bookIdParam]) {
 
       <h3 class="pick-title">キャラクター</h3>
       <div class="avatar-pick">
-        ${Object.entries(AVATARS).map(([k, a]) => `
+        ${Object.entries(AVATARS).filter(([, a]) => a.talk !== false).map(([k, a]) => `
           <button class="avatar-opt ${k === state.avatar ? 'on' : ''}" data-av="${k}" ${dis}>
             ${avatarHTML(k, { framing: 'face' })}<span><b>${a.name} <span class="from">${a.from}</span></b><small>${a.tagline}</small></span>
           </button>`).join('')}

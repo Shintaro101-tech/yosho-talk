@@ -5,6 +5,7 @@
 //   POST /live/sessions  -> OpenAI POST /v1/live/sessions (GPT-Live WebRTC SDP exchange)
 //   POST /responses      -> OpenAI POST /v1/responses   (word extraction / feedback)
 //   POST /voices         -> OpenAI POST /v1/audio/voices (prompt-to-voice: create a custom voice)
+//   GET  /cover?isbn=…   -> a Japanese book's cover image (no passcode; images only)
 //
 // Only the WebRTC handshake passes through here; the voice audio itself flows
 // directly between the browser and OpenAI.
@@ -33,6 +34,10 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { status: originOk ? 204 : 403, headers: cors });
     if (!originOk) return error(403, 'This origin is not allowed.', cors);
 
+    // Covers: before the rate limit (a book search asks for up to 12 at once).
+    const url = new URL(req.url);
+    if (req.method === 'GET' && url.pathname === '/cover') return bookCover(url.searchParams.get('isbn'), cors);
+
     if (env.LIMITER) {
       const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
       const { success } = await env.LIMITER.limit({ key: ip });
@@ -42,7 +47,7 @@ export default {
     if (!env.PASSCODE || !env.OPENAI_API_KEY) return error(500, 'Server is not configured (missing secrets).', cors);
     if (!(await sameText(req.headers.get('X-Passcode') || '', env.PASSCODE))) return error(401, 'Wrong passcode.', cors);
 
-    const { pathname } = new URL(req.url);
+    const { pathname } = url;
 
     if (req.method === 'GET' && pathname === '/check') return json({ ok: true }, 200, cors);
 
@@ -91,6 +96,37 @@ export default {
     return error(404, 'Not found.', cors);
   },
 };
+
+// A book's cover by ISBN-13, from the first source that has one: openBD, 版元ドットコム,
+// then Google Books. Google answers with a grey "no image" picture instead of an error,
+// so that picture is recognised by its SHA-256 and skipped.
+const GOOGLE_NO_COVER = 'a9af512c1e52ed9cafd06b8f212bf13940976703ee3a38573df558e28ce31a21';
+
+async function bookCover(isbn, cors) {
+  if (!/^97[89]\d{10}$/.test(isbn || '')) return error(400, 'Give a 13-digit ISBN.', cors);
+  const sources = [
+    async () => (await (await fetch(`https://api.openbd.jp/v1/get?isbn=${isbn}`)).json())?.[0]?.summary?.cover,
+    async () => `https://www.hanmoto.com/bd/img/${isbn}.jpg`,
+    async () => `https://books.google.com/books/content?vid=ISBN${isbn}&printsec=frontcover&img=1&zoom=1`,
+  ];
+  for (const source of sources) {
+    try {
+      const src = await source();
+      if (!src) continue;
+      const res = await fetch(src);
+      const type = res.headers.get('Content-Type') || '';
+      if (!res.ok || !type.startsWith('image/')) continue;
+      const buf = await res.arrayBuffer();
+      if (buf.byteLength < 1000 || (await sha256(buf)) === GOOGLE_NO_COVER) continue;
+      return new Response(buf, { headers: { ...cors, 'Content-Type': type, 'Cache-Control': 'public, max-age=604800' } });
+    } catch { /* try the next source */ }
+  }
+  return error(404, 'No cover found.', cors);
+}
+
+async function sha256(buf) {
+  return [...new Uint8Array(await crypto.subtle.digest('SHA-256', buf))].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 // Constant-time comparison of two strings (via their SHA-256 digests).
 async function sameText(a, b) {

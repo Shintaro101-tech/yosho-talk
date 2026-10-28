@@ -359,8 +359,7 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
 .confetti { font-size: 3rem; animation: pop .5s; }
 .xp-gain { font-size: 1.6rem; font-weight: 800; color: var(--accent); }
 
-.about { display: flex; gap: 16px; align-items: center; }
-.about img { width: 64px; height: 64px; border-radius: 14px; }
+.about { text-align: center; margin: 4px 0 8px; }
 
 /* toasts */
 .toasts { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }

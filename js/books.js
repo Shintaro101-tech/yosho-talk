@@ -1,6 +1,7 @@
 import { $, $$, esc, formatDate, formatDuration, openDialog, stars, today, toast } from './util.js';
 import { data, addBook, updateBook, deleteBook, getBook } from './store.js';
 import { installBanner } from './install.js';
+import { coverSrc, cacheCover } from './covers.js';
 
 const STATUS = {
   want: { label: '読みたい', cls: 'st-want' },
@@ -70,7 +71,7 @@ export function bookCover(b, size = '') {
 }
 function cover(b, size = '') {
   return b.cover
-    ? `<img class="cover ${size}" src="${esc(b.cover)}" alt="" loading="lazy">`
+    ? `<img class="cover ${size}" src="${esc(coverSrc(b.cover))}" data-cover="${esc(b.cover)}" alt="">`
     : `<div class="cover cover-blank ${size}" style="--h:${hue(b.title)}"><span>${esc(b.title)}</span></div>`;
 }
 const hue = (s = '') => [...s].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
@@ -269,7 +270,7 @@ function shrinkImage(file, maxW = 300, maxH = 450) {
 }
 
 // Book search. English titles come from Open Library; queries with Japanese text also
-// search the National Diet Library (国立国会図書館サーチ), with covers from openBD.
+// search the National Diet Library (国立国会図書館サーチ), with covers found by ISBN.
 const JA = /[぀-ヿ㐀-鿿]/;
 
 async function searchBooks(field, query, box, onPick) {
@@ -357,7 +358,7 @@ async function searchNDL(field, q) {
   const books = [...byTitle.values()].filter((b) => b.author || (b.rank === 0 && !authored.has(norm(b.title))));
   books.sort((a, b) => a.rank - b.rank || String(b.year).localeCompare(String(a.year)));
   const top = books.slice(0, 12);
-  await addOpenBDCovers(top);
+  await addJapaneseCovers(top);
   // Ones with a cover first within the same rank.
   return top.sort((a, b) => a.rank - b.rank || (!a.cover - !b.cover));
 }
@@ -369,19 +370,24 @@ function personName(s) {
   return JA.test(parts[0]) ? parts.slice(0, 2).join('') : parts.slice(0, 2).reverse().join(' ');
 }
 
-// Covers for Japanese books: openBD's cover, else 版元ドットコム's image by ISBN.
-// Each candidate is loaded first, and only covers that actually exist are kept.
-async function addOpenBDCovers(books) {
-  const isbns = books.map((b) => b.isbn).filter(Boolean);
-  if (!isbns.length) return;
+// Covers for Japanese books by ISBN. The relay tries openBD, 版元ドットコム and Google
+// Books (it can tell Google's grey "no image" picture from a real cover; the browser
+// can't). Without the relay, openBD and 版元ドットコム are tried from here.
+async function addJapaneseCovers(books) {
+  books.forEach((b) => (b.isbn = b.isbn.length === 10 ? isbn10to13(b.isbn) : b.isbn));
+  const missing = [];
+  await Promise.all(books.map(async (b) => {
+    const url = await cacheCover(`isbn:${b.isbn}`);
+    if (url) { b.cover = `isbn:${b.isbn}`; b.thumb = url; } else missing.push(b);
+  }));
+  if (!missing.length) return;
   const fromOpenBD = new Map();
   try {
-    const j = await (await fetch(`https://api.openbd.jp/v1/get?isbn=${isbns.join(',')}`)).json();
+    const j = await (await fetch(`https://api.openbd.jp/v1/get?isbn=${missing.map((b) => b.isbn).join(',')}`)).json();
     for (const r of j || []) if (r?.summary?.cover) fromOpenBD.set(r.summary.isbn, r.summary.cover);
   } catch { /* covers are optional */ }
-  await Promise.all(books.map(async (b) => {
-    const isbn13 = b.isbn.length === 10 ? isbn10to13(b.isbn) : b.isbn;
-    for (const url of [fromOpenBD.get(b.isbn), `https://www.hanmoto.com/bd/img/${isbn13}.jpg`]) {
+  await Promise.all(missing.map(async (b) => {
+    for (const url of [fromOpenBD.get(b.isbn), `https://www.hanmoto.com/bd/img/${b.isbn}.jpg`]) {
       if (url && (await imageLoads(url))) { b.thumb = b.cover = url; return; }
     }
   }));
@@ -391,7 +397,8 @@ function imageLoads(src, ms = 4000) {
   return new Promise((resolve) => {
     const img = new Image();
     const t = setTimeout(() => resolve(false), ms);
-    img.onload = () => { clearTimeout(t); resolve(img.naturalWidth > 1); };
+    // 版元ドットコム answers a missing cover with a tiny picture: not a cover.
+    img.onload = () => { clearTimeout(t); resolve(img.naturalWidth >= 20); };
     img.onerror = () => { clearTimeout(t); resolve(false); };
     img.src = src;
   });

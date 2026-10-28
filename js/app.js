@@ -6,6 +6,7 @@ import { renderWords } from './words.js';
 import { renderSettings } from './settings.js';
 import { renderAvatarCheck } from './avatar-check.js';
 import { renderHistory } from './history.js';
+import { loadCovers } from './covers.js';
 import './install.js'; // listens for the install prompt from page load
 
 const routes = {
@@ -46,4 +47,5 @@ function renderChip() {
 window.addEventListener('hashchange', route);
 onChange(renderChip);
 renderChip();
-route();
+// Stored covers first, so the first page draws them without a delay.
+loadCovers().then(route);

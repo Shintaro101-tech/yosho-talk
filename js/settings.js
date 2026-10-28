@@ -45,14 +45,7 @@ export function renderSettings(el) {
       <p class="mini muted">本 ${data.books.length} 冊 ・ 単語 ${data.vocab.length} 語 ・ トーク ${data.talks.length} 回</p>
     </section>
 
-    <section class="card about">
-      <img src="assets/brand/app-icon-192.png" alt="洋書トーク">
-      <div>
-        <h2>洋書トーク <small class="muted">Read, Talk, Learn</small></h2>
-        <p class="mini">YouTube「洋書ラジオ」の英語学習アプリ。本の情報は <a href="https://openlibrary.org" target="_blank" rel="noopener">Open Library</a>、トークは OpenAI GPT-Live-1 を利用しています。</p>
-        <p><a class="btn btn-sm yt-btn" href="https://www.youtube.com/@Youshoradio" target="_blank" rel="noopener">▶ YouTube「洋書ラジオ」を見る</a></p>
-      </div>
-    </section>`;
+    <p class="about"><a class="btn btn-sm yt-btn" href="https://www.youtube.com/@Youshoradio" target="_blank" rel="noopener">▶ YouTube「洋書ラジオ」を見る</a></p>`;
 
   $('#install', el)?.addEventListener('click', installApp);
   $('#testConn', el).onclick = async (e) => {

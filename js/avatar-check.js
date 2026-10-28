@@ -10,8 +10,8 @@ import { LiveSession } from './live.js';
 import { createMeter } from './talk.js';
 
 const PARTS = { eyes: '目（閉じ）', mouth: '口（開き）' };
-const ACCENT_LABEL = { emma: 'アイルランド英語', oliver: 'イギリス英語', noah: 'アメリカ英語', chloe: 'アメリカ英語' };
-const ACCENT_NAME = { emma: 'Irish', oliver: 'British', noah: 'American', chloe: 'American' };
+const ACCENT_LABEL = { emma: 'アイルランド英語', oliver: 'イギリス英語', noah: 'オーストラリア英語', chloe: 'アメリカ英語' };
+const ACCENT_NAME = { emma: 'Irish', oliver: 'British', noah: 'Australian', chloe: 'American' };
 
 let preview = null; // the voice preview playing now: { live, meter, button, timers }
 const FIELDS = ['x', 'y', 'w', 'h'];

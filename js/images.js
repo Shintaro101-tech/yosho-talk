@@ -3,7 +3,7 @@
 // kept for good, so only the search results are kept here, for a day.
 
 import { esc } from './util.js';
-import { getPasscode, relayPost } from './api.js';
+import { relayReady, relayPost } from './api.js';
 
 const KEY = 'yoshotalk:images';
 const TTL = 24 * 60 * 60 * 1000;
@@ -16,7 +16,7 @@ function load() {
 // [{ src, page, user, tags }], or [] when there are none or image search isn't set up.
 export async function searchImages(query) {
   const q = String(query || '').trim().toLowerCase();
-  if (!q || !getPasscode()) return [];
+  if (!q || !relayReady()) return [];
   const kept = load();
   if (kept[q] && Date.now() - kept[q].at < TTL) return kept[q].list;
   try {

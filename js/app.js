@@ -7,6 +7,8 @@ import { renderSettings } from './settings.js';
 import { renderAvatarCheck } from './avatar-check.js';
 import { renderHistory } from './history.js';
 import { renderDict } from './dict.js';
+import { renderLogin } from './login.js';
+import { CLOUD, initCloud, signedIn } from './cloud.js';
 import { loadCovers } from './covers.js';
 import './install.js'; // listens for the install prompt from page load
 
@@ -19,12 +21,16 @@ const routes = {
   avatars: renderAvatarCheck,
   history: renderHistory,
   dict: renderDict,
+  login: renderLogin,
 };
 
 let cleanup = null;
 
 function route() {
   const [name = 'books', ...params] = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent);
+  // With accounts, everything but the login page needs a login.
+  if (CLOUD && !signedIn() && name !== 'login') { location.hash = '#/login'; return; }
+  document.body.classList.toggle('logged-out', CLOUD && !signedIn());
   const render = routes[name] || renderBooks;
   if (typeof cleanup === 'function') cleanup();
   const view = $('#view');
@@ -40,7 +46,7 @@ function route() {
 function renderChip() {
   const { used, limit } = talkUsage();
   const min = Math.floor(used / 60);
-  const pct = Math.min(100, (used / limit) * 100);
+  const pct = limit ? Math.min(100, (used / limit) * 100) : 0;
   $('#playerChip').innerHTML = `
     <span class="chip-level">🎙️ ${min}<small>/${limit / 60}分</small></span>
     <span class="chip-bar ${pct >= 90 ? 'warn' : ''}"><span style="width:${pct}%"></span></span>`;
@@ -49,5 +55,5 @@ function renderChip() {
 window.addEventListener('hashchange', route);
 onChange(renderChip);
 renderChip();
-// Stored covers first, so the first page draws them without a delay.
-loadCovers().then(route);
+// Stored covers and the account's data first, so the first page draws them right away.
+Promise.all([loadCovers(), initCloud().catch((err) => console.error(err))]).then(route);

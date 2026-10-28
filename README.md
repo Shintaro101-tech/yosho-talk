@@ -51,3 +51,8 @@ js/history.js   トーク履歴
 js/settings.js  設定
 worker/         Cloudflare Worker（中継サーバー）
 ```
+
+## アカウント・販売の準備
+
+- アカウント機能（Supabase）のセットアップ：`supabase/README.md`
+- 販売までの段階ごとの作業と費用のシミュレーション：`docs/launch-plan.md`

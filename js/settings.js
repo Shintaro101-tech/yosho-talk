@@ -2,6 +2,7 @@ import { $, esc, toast } from './util.js';
 import { data, save, exportJSON, importJSON, resetAll } from './store.js';
 import { getPasscode, setPasscode, checkPasscode, ensurePasscode } from './api.js';
 import { installApp, isInstalled } from './install.js';
+import { CLOUD, currentAccount, userEmail, signOut, deleteAccount, refreshAccount, setPassword } from './cloud.js';
 
 export function renderSettings(el) {
   const s = data.settings;
@@ -23,7 +24,7 @@ export function renderSettings(el) {
       ${isInstalled() ? '' : '<div class="row"><button class="btn btn-primary" id="install">📲 ホーム画面に追加</button></div>'}
     </section>
 
-    <section class="card form">
+    ${CLOUD ? accountSection() : `<section class="card form">
       <h2>🔒 トーク接続</h2>
       <p class="mini muted">トークと単語抽出は、洋書ラジオの中継サーバーを通して OpenAI に接続します。API キーの入力は不要です。初回だけ合言葉が必要です。</p>
       <p>合言葉：<b>${getPasscode() ? '✅ このブラウザに記憶済み' : '未入力'}</b></p>
@@ -32,11 +33,11 @@ export function renderSettings(el) {
         <button class="btn btn-ghost" id="changePass">${getPasscode() ? '合言葉を入れ直す' : '合言葉を入力'}</button>
         ${getPasscode() ? '<button class="btn btn-ghost danger" id="forgetPass">このブラウザから消す</button>' : ''}
       </div>
-    </section>
+    </section>`}
 
     <section class="card form">
       <h2>💾 データのバックアップ</h2>
-      <p class="mini muted">データはこのブラウザ（localStorage）に保存されています。ブラウザのデータを消すと失われるので、ときどきエクスポートしてください。別の端末へ移すときもこのファイルを使います（合言葉は含まれません）。</p>
+      <p class="mini muted">${CLOUD ? 'データはアカウントに保存されています。手元にも残しておきたいときは、エクスポートしてください。' : 'データはこのブラウザ（localStorage）に保存されています。ブラウザのデータを消すと失われるので、ときどきエクスポートしてください。別の端末へ移すときもこのファイルを使います（合言葉は含まれません）。'}</p>
       <div class="actions-left">
         <button class="btn" id="export">⬇️ エクスポート</button>
         <label class="btn">⬆️ インポート<input type="file" id="import" accept="application/json" hidden></label>
@@ -48,19 +49,9 @@ export function renderSettings(el) {
     <p class="about"><a class="btn btn-sm yt-btn" href="https://www.youtube.com/@Youshoradio" target="_blank" rel="noopener">▶ YouTube「洋書ラジオ」を見る</a></p>`;
 
   $('#install', el)?.addEventListener('click', installApp);
-  $('#testConn', el).onclick = async (e) => {
-    e.target.disabled = true;
-    const r = getPasscode() ? await checkPasscode(getPasscode()) : 'wrong';
-    e.target.disabled = false;
-    if (r === 'ok') toast('接続OK！トークを使えます', 'success');
-    else if (r === 'wrong') { setPasscode(''); if (await ensurePasscode()) toast('接続OK！トークを使えます', 'success'); renderSettings(el); }
-    else toast(r.slice(6), 'error');
-  };
-  $('#changePass', el).onclick = async () => {
-    if (await ensurePasscode('', true)) toast('保存しました', 'success');
-    renderSettings(el);
-  };
-  $('#forgetPass', el)?.addEventListener('click', () => { setPasscode(''); toast('合言葉を消しました'); renderSettings(el); });
+  if (CLOUD) {
+    bindAccount(el);
+  } else bindPasscode(el);
 
   $('#nameForm', el).onsubmit = (e) => {
     e.preventDefault();
@@ -94,5 +85,83 @@ export function renderSettings(el) {
     resetAll();
     toast('初期化しました');
     renderSettings(el);
+  };
+}
+
+function bindPasscode(el) {
+  $('#testConn', el).onclick = async (e) => {
+    e.target.disabled = true;
+    const r = getPasscode() ? await checkPasscode(getPasscode()) : 'wrong';
+    e.target.disabled = false;
+    if (r === 'ok') toast('接続OK！トークを使えます', 'success');
+    else if (r === 'wrong') { setPasscode(''); if (await ensurePasscode()) toast('接続OK！トークを使えます', 'success'); renderSettings(el); }
+    else toast(r.slice(6), 'error');
+  };
+  $('#changePass', el).onclick = async () => {
+    if (await ensurePasscode('', true)) toast('保存しました', 'success');
+    renderSettings(el);
+  };
+  $('#forgetPass', el)?.addEventListener('click', () => { setPasscode(''); toast('合言葉を消しました'); renderSettings(el); });
+}
+
+// ---------------------------------------------------------------- account (Supabase)
+
+function accountSection() {
+  const a = currentAccount();
+  const u = a?.usage || { talk_seconds: 0, ai_calls: 0 };
+  const l = a?.limits || { talk_minutes: 0, ai_calls: 0 };
+  return `
+    <section class="card form account">
+      <h2>👤 アカウント</h2>
+      <p><b>${esc(userEmail())}</b></p>
+      <p class="mini">プラン：<b>${esc(a?.label || '確認中…')}</b></p>
+      ${l.talk_minutes + l.ai_calls > 0 ? `
+      <p class="mini muted">今月の利用：トーク ${Math.floor(u.talk_seconds / 60)} / ${l.talk_minutes}分 ・ AI 機能（辞書・フィードバックなど） ${u.ai_calls} / ${l.ai_calls}回</p>`
+      : '<p class="mini muted">トーク・フィードバック・辞書は、招待コードを入力すると使えるようになります。</p><div class="row"><button class="btn btn-primary" id="redeem">🎟️ 招待コードを入力</button></div>'}
+      <div class="actions-left">
+        <button class="btn btn-ghost" id="newPass">パスワードを変更</button>
+        <button class="btn" id="logout">ログアウト</button>
+      </div>
+      <details class="danger-zone">
+        <summary>アカウントを削除する</summary>
+        <p class="mini muted">アカウントと、本棚・単語帳・トークの記録がすべて削除され、元に戻せません。必要なら先にエクスポートしてください。</p>
+        <button class="btn btn-ghost danger" id="deleteAccount">アカウントを削除</button>
+      </details>
+    </section>`;
+}
+
+// The plan and usage are refreshed from the relay once the page is shown.
+function bindAccount(el) {
+  bindAccountButtons(el);
+  refreshAccount().then(() => {
+    const box = $('.account', el);
+    if (!box) return;
+    box.outerHTML = accountSection();
+    bindAccountButtons(el);
+  }).catch(() => {});
+}
+
+function bindAccountButtons(el) {
+  $('#redeem', el)?.addEventListener('click', async () => {
+    if (await ensurePasscode()) renderSettings(el);
+  });
+  $('#newPass', el).onclick = async () => {
+    const p = prompt('新しいパスワードを入力してください（6文字以上）');
+    if (!p) return;
+    try { await setPassword(p); toast('パスワードを変更しました', 'success'); } catch (err) { toast(err.message, 'error'); }
+  };
+  $('#logout', el).onclick = async () => {
+    if (!confirm('ログアウトしますか？')) return;
+    await signOut();
+    location.hash = '#/login';
+  };
+  $('#deleteAccount', el).onclick = async () => {
+    if (!confirm('アカウントとすべてのデータを削除します。元に戻せません。よろしいですか？')) return;
+    if (prompt('確認のため「削除」と入力してください') !== '削除') return;
+    try {
+      await deleteAccount();
+      toast('アカウントを削除しました');
+      location.hash = '#/login';
+    } catch (err) { toast(err.message, 'error'); }
   };
 }

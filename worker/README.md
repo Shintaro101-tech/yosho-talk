@@ -8,6 +8,7 @@ OpenAI API キーをここに預け、アプリ（GitHub Pages）からはキー
 - 使うモデルはサーバー側で固定（GPT-Live は `gpt-live-1`、単語保存・抽出は `BACKEND_MODEL`）
 - オリジナルの声の作成（prompt-to-voice、`/v1/audio/voices`）も中継します
 - 辞書のイメージ写真を Pixabay で検索します（`PIXABAY_KEY` を登録したときだけ）
+- アカウント（Supabase）でログインした人は、プランごとの月の上限（トーク時間・AI 機能の回数）までだけ使えます（`SUPABASE_URL`・`SUPABASE_SERVICE_KEY`・`INVITE_CODE` を設定したとき。手順は `supabase/README.md`）
 - 中継するのは接続開始時の情報だけ。会話の音声はブラウザと OpenAI が直接やり取り
 
 ## 初回セットアップ（ターミナルで実行）

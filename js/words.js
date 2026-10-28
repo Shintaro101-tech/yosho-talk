@@ -1,6 +1,6 @@
 import { $, $$, esc, openDialog, speak, toast } from './util.js';
 import { data, save, addVocab, updateVocab, deleteVocab, getBook } from './store.js';
-import { getPasscode } from './api.js';
+import { relayReady } from './api.js';
 import { responsesJSON } from './live.js';
 import { searchImages, picturesHTML } from './images.js';
 import { bookCover } from './books.js';
@@ -102,7 +102,7 @@ async function togglePictures(card) {
 // dictionary had them) get one, a batch at a time, in the background.
 let addingEmoji = false;
 async function addEmoji() {
-  if (addingEmoji || !getPasscode()) return;
+  if (addingEmoji || !relayReady()) return;
   addingEmoji = true;
   try {
     let todo;

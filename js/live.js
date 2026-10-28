@@ -7,6 +7,7 @@
 //       https://developers.openai.com/api/docs/guides/live-delegation
 
 import { relayPost } from './api.js';
+import { reportTalk } from './cloud.js';
 
 export class LiveSession {
   constructor({ session, onEvent, onStatus, onRemoteStream, onFunctionCall }) {
@@ -75,6 +76,15 @@ export class LiveSession {
   handle(ev) {
     switch (ev.type) {
       case 'session.started':
+        // With accounts, the relay counted the first minute; report each further minute.
+        this.liveAt = Date.now();
+        this.reported = 60;
+        this.beat = setInterval(() => {
+          if ((Date.now() - this.liveAt) / 1000 - this.reported >= 60) {
+            this.reported += 60;
+            reportTalk(60).catch(() => {});
+          }
+        }, 5000);
         this.onStatus?.('live');
         break;
       case 'session.closed':
@@ -142,10 +152,15 @@ export class LiveSession {
       result = await Promise.race([done, new Promise((r) => setTimeout(() => r(null), timeoutMs))]);
     }
     this.cleanup();
+    if (this.liveAt) {
+      const total = result?.usage?.seconds ?? (Date.now() - this.liveAt) / 1000;
+      await reportTalk(Math.max(1, total - this.reported), true).catch(() => {});
+    }
     return result;
   }
 
   cleanup() {
+    clearInterval(this.beat);
     this.mic?.getTracks().forEach((t) => t.stop());
     try { this.dc?.close(); } catch {}
     try { this.pc?.close(); } catch {}

@@ -1,7 +1,10 @@
-// All app data lives in this browser's localStorage (personal use).
-// Use 設定 > エクスポート to back it up or move it to another device.
+// The app's data, kept in this browser's localStorage. With accounts (cloud.js) it is
+// also kept in the account; without them, 設定 > エクスポート backs it up.
 
 import { uid, today, toast } from './util.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+
+const CLOUD = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 const KEY = 'yoshotalk:data:v1';
 
@@ -45,21 +48,32 @@ export function save() {
 }
 export const onChange = (fn) => listeners.add(fn);
 
+// Replaces everything (an account's data after login, or nothing after logout).
+export function replaceData(d) {
+  if (d !== data) {
+    const f = fresh();
+    for (const k of Object.keys(data)) delete data[k];
+    Object.assign(data, f, d || {}, { settings: { ...f.settings, ...(d?.settings || {}) } });
+  }
+  save();
+}
+
 // ---------- Monthly talk time ----------
 // Talk time is capped per calendar month (resets on the 1st) to keep API costs predictable.
+// With accounts, the relay counts it and the limit comes from the account's plan.
 export const TALK_LIMIT_MIN = 60;
 const monthKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
 export function talkUsage() {
   const u = data.usage?.month === monthKey() ? data.usage : { seconds: 0 };
-  const limit = TALK_LIMIT_MIN * 60;
+  const limit = (CLOUD ? data.usage?.limitMin ?? 0 : TALK_LIMIT_MIN) * 60;
   const now = new Date();
   const reset = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   return { used: u.seconds, limit, left: Math.max(0, limit - u.seconds), resetLabel: `${reset.getMonth() + 1}月1日` };
 }
 
 export function addTalkSeconds(sec) {
-  if (!(sec > 0)) return;
+  if (!(sec > 0) || CLOUD) return; // with accounts, the relay keeps the count
   const month = monthKey();
   const seconds = (data.usage?.month === month ? data.usage.seconds : 0) + Math.round(sec);
   data.usage = { month, seconds };

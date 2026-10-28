@@ -1,5 +1,5 @@
 import { $, $$, esc, formatDuration, openDialog, toast } from './util.js';
-import { data, save, getBook, addVocab, addTalk, talkUsage, addTalkSeconds, TALK_LIMIT_MIN } from './store.js';
+import { data, save, getBook, addVocab, addTalk, talkUsage, addTalkSeconds } from './store.js';
 import { ensurePasscode } from './api.js';
 import { AVATARS, avatarHTML, avatarKey, lipSync, voiceFor } from './avatars.js';
 import { LiveSession, responsesJSON } from './live.js';
@@ -338,10 +338,10 @@ export function renderTalk(el, [bookIdParam]) {
     // Keep the book row where the learner scrolled it (redrawing would reset it).
     const pickScroll = $('.book-pick', setup)?.scrollLeft || 0;
     setup.innerHTML = `
-      <div class="usage ${u.left < 1 ? 'over' : u.left < 600 ? 'low' : ''}">
+      <div class="usage ${!u.limit ? '' : u.left < 1 ? 'over' : u.left < 600 ? 'low' : ''}">
         <div class="usage-head"><b>今月のトーク</b><span><b>${usedMin}</b> / ${u.limit / 60}分</span></div>
-        <span class="bar"><span style="width:${Math.min(100, (u.used / u.limit) * 100)}%"></span></span>
-        <small>${u.left < 1 ? '今月の上限に達しました' : `残り ${Math.ceil(u.left / 60)}分`} ・ ${u.resetLabel}にリセット</small>
+        <span class="bar"><span style="width:${u.limit ? Math.min(100, (u.used / u.limit) * 100) : 0}%"></span></span>
+        <small>${!u.limit ? '「トークを始める」から招待コードを入力すると、トークを使えるようになります' : u.left < 1 ? '今月の上限に達しました' : `残り ${Math.ceil(u.left / 60)}分`}${u.limit ? ` ・ ${u.resetLabel}にリセット` : ''}</small>
       </div>
       <p class="mini hist-shortcut"><a href="#/history">📜 これまでのトークを見る</a></p>
       <p class="mini muted hello">${s.userName ? `👋 ${esc(s.userName)} さん` : '呼び名が未登録です'} <button class="link-btn" id="editName" ${dis}>${s.userName ? '変更' : '登録'}</button></p>
@@ -569,11 +569,12 @@ export function renderTalk(el, [bookIdParam]) {
   async function start(practice = null) {
     if (!s.userName && !(await askUserName())) return;
     drawSetup();
+    if (!(await ensurePasscode())) return;
+    drawSetup(); // the plan may have changed (an invite code)
     if (talkUsage().left < 1) {
-      toast(`今月のトーク時間（${TALK_LIMIT_MIN}分）を使い切りました。${talkUsage().resetLabel}にリセットされます。`, 'error');
+      toast(`今月のトーク時間（${talkUsage().limit / 60}分）を使い切りました。${talkUsage().resetLabel}にリセットされます。`, 'error');
       return;
     }
-    if (!(await ensurePasscode())) return;
     closeAskBox();
     state.practice = practice;
     state.reviewing = false;
@@ -711,7 +712,7 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
     const left = talkUsage().left - seg;
     $('#clock', el).textContent = `${formatDuration(state.elapsedBefore + seg)} ・ 今月の残り ${Math.max(0, Math.ceil(left / 60))}分`;
     if (left <= 0) {
-      toast(`今月のトーク時間（${TALK_LIMIT_MIN}分）を使い切ったので終了しました。`, 'error');
+      toast(`今月のトーク時間（${talkUsage().limit / 60}分）を使い切ったので終了しました。`, 'error');
       stop();
     } else if (state.endAt && goodbyeDone()) {
       toast('会話が終わったので、トークを終了しました', 'success');
@@ -784,7 +785,7 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
 
   async function resume() {
     if (talkUsage().left < 1) {
-      toast(`今月のトーク時間（${TALK_LIMIT_MIN}分）を使い切りました。`, 'error');
+      toast(`今月のトーク時間（${talkUsage().limit / 60}分）を使い切りました。`, 'error');
       return;
     }
     await connect(true);

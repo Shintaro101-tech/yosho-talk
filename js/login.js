@@ -1,6 +1,6 @@
 // Login / sign-up (#/login), used when accounts are on (cloud.js).
 
-import { $, $$, esc, toast } from './util.js';
+import { $, $$, esc, toast, updateApp } from './util.js';
 import { signIn, signUp, resetPassword, signedIn } from './cloud.js';
 
 let mode = 'login'; // 'login' | 'signup'
@@ -27,6 +27,7 @@ export function renderLogin(el) {
           ${mode === 'login' ? '<button type="button" class="link-btn" id="forgot">パスワードを忘れた場合</button>' : ''}
         </form>
         <p class="mini muted login-note">本棚・単語帳・トークの記録はアカウントに保存され、スマホとパソコンなど、どの端末からでも同じデータを使えます。</p>
+        <p class="about"><button class="link-btn" id="update">🔄 最新版に更新</button></p>
       </section>`;
     $$('[data-mode]', el).forEach((b) => (b.onclick = () => { mode = b.dataset.mode; draw(); }));
     const form = $('.login-form', el);
@@ -49,6 +50,7 @@ export function renderLogin(el) {
         draw(`<span class="ng">${esc(err.message)}</span>`, email);
       }
     };
+    $('#update', el).onclick = (e) => { e.target.disabled = true; e.target.textContent = '更新しています…'; updateApp(); };
     $('#forgot', el)?.addEventListener('click', async () => {
       const email = form.email.value.trim() || prompt('登録したメールアドレスを入力してください');
       if (!email) return;

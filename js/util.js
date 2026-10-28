@@ -85,3 +85,14 @@ export function openDialog(html, { onSubmit, onOpen } = {}) {
 export function stars(n) {
   return '★'.repeat(n || 0) + '☆'.repeat(5 - (n || 0));
 }
+
+// Gets the newest version of the app: the browser (and a home-screen app) may keep
+// the files for a while, so every file this page loaded is fetched again past the
+// cache before reloading.
+export async function updateApp() {
+  const files = performance.getEntriesByType('resource').map((e) => e.name)
+    .filter((u) => u.startsWith(location.origin) && /\.(js|css|webmanifest)(\?|$)/.test(u));
+  files.push(location.href.split('#')[0]);
+  await Promise.all([...new Set(files)].map((u) => fetch(u, { cache: 'reload' }).catch(() => {})));
+  location.reload();
+}

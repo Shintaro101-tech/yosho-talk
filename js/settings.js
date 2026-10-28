@@ -1,4 +1,4 @@
-import { $, esc, toast } from './util.js';
+import { $, esc, toast, updateApp } from './util.js';
 import { data, save, exportJSON, importJSON, resetAll } from './store.js';
 import { getPasscode, setPasscode, checkPasscode, ensurePasscode } from './api.js';
 import { installApp, isInstalled } from './install.js';
@@ -46,9 +46,11 @@ export function renderSettings(el) {
       <p class="mini muted">本 ${data.books.length} 冊 ・ 単語 ${data.vocab.length} 語 ・ トーク ${data.talks.length} 回</p>
     </section>
 
-    <p class="about"><a class="btn btn-sm yt-btn" href="https://www.youtube.com/@Youshoradio" target="_blank" rel="noopener">▶ YouTube「洋書ラジオ」を見る</a></p>`;
+    <p class="about"><a class="btn btn-sm yt-btn" href="https://www.youtube.com/@Youshoradio" target="_blank" rel="noopener">▶ YouTube「洋書ラジオ」を見る</a></p>
+    <p class="about"><button class="link-btn" id="update">🔄 最新版に更新</button></p>`;
 
   $('#install', el)?.addEventListener('click', installApp);
+  $('#update', el).onclick = (e) => { e.target.disabled = true; e.target.textContent = '更新しています…'; updateApp(); };
   if (CLOUD) {
     bindAccount(el);
   } else bindPasscode(el);

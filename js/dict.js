@@ -6,7 +6,7 @@
 // Each entry has emoji, and photos from Pixabay (searched by the relay) when it's set up.
 
 import { $, $$, esc, toast } from './util.js';
-import { data, addVocab, getBook } from './store.js';
+import { data, addVocab, getBook, hasVocab } from './store.js';
 import { ensurePasscode } from './api.js';
 import { searchImages, picturesHTML } from './images.js';
 import { responsesJSON } from './live.js';
@@ -204,7 +204,7 @@ export function renderDict(el, [param]) {
       $$('[data-look]', out).forEach((b) => (b.onclick = () => lookUp(b.dataset.look)));
       return;
     }
-    const saved = data.vocab.some((v) => v.term.toLowerCase() === e.headword.toLowerCase());
+    const saved = hasVocab(e.headword);
     out.innerHTML = `
       <article class="card dict-entry">
         <header class="dict-head">
@@ -232,7 +232,9 @@ export function renderDict(el, [param]) {
         <ul class="dict-colls">
           ${e.collocations.map((c, i) => `
             <li><b>${esc(c.phrase)}</b> <span class="muted">${esc(c.meaning_ja)}</span>
-              <button class="btn btn-sm btn-ghost" data-addc="${i}">＋単語帳</button></li>`).join('')}
+              ${hasVocab(c.phrase)
+                ? '<button class="btn btn-sm btn-ghost" disabled>✓ 単語帳にあります</button>'
+                : `<button class="btn btn-sm btn-ghost" data-addc="${i}">＋単語帳</button>`}</li>`).join('')}
         </ul>` : ''}
         ${e.synonyms.length ? `<p class="mini"><b>類義語：</b>${e.synonyms.map((w) => `<button class="link-btn" data-look="${esc(w)}">${esc(w)}</button>`).join(' ・ ')}</p>` : ''}
         ${e.usage_ja ? `<p class="mini dict-usage">💡 ${esc(e.usage_ja)}</p>` : ''}

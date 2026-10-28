@@ -1,7 +1,7 @@
 import { $, $$ } from './util.js';
 import { onChange, talkUsage } from './store.js';
 import { renderBooks, renderBookDetail } from './books.js';
-import { renderTalk } from './talk.js';
+import { renderTalk, recoverTalkDraft } from './talk.js';
 import { renderWords } from './words.js';
 import { renderSettings } from './settings.js';
 import { renderAvatarCheck } from './avatar-check.js';
@@ -56,4 +56,7 @@ window.addEventListener('hashchange', route);
 onChange(renderChip);
 renderChip();
 // Stored covers and the account's data first, so the first page draws them right away.
-Promise.all([loadCovers(), initCloud().catch((err) => console.error(err))]).then(route);
+Promise.all([loadCovers(), initCloud().catch((err) => console.error(err))]).then(() => {
+  if (!CLOUD || signedIn()) recoverTalkDraft();
+  route();
+});

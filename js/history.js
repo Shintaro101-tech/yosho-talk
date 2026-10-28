@@ -2,7 +2,7 @@
 // script, what was on the display, and the after-talk feedback.
 
 import { $, $$, esc, formatDate, formatDuration, toast } from './util.js';
-import { data, getBook, addVocab, deleteTalk } from './store.js';
+import { data, getBook, addVocab, deleteTalk, hasVocab } from './store.js';
 import { AVATARS, avatarHTML } from './avatars.js';
 import { bookCover } from './books.js';
 import { openAskBox, closeAskBox } from './askbox.js';
@@ -109,7 +109,9 @@ function fillDetails(d, t, redraw) {
             <p class="key-phrase"><b>${esc(p.key_phrase)}</b> — ${esc(p.meaning_ja)}</p>
             <p class="mini muted">${esc(p.why_ja)}</p>
             <span class="row">
-              <button class="btn btn-sm" data-add="${i}">＋単語帳</button>
+              ${hasVocab(p.key_phrase)
+                ? '<button class="btn btn-sm" disabled>✓ 単語帳にあります</button>'
+                : `<button class="btn btn-sm" data-add="${i}">＋単語帳</button>`}
               ${canUseAI() ? `<button class="btn btn-sm btn-ghost" data-ask="${i}">💬 質問する</button>` : ''}
             </span>
           </li>`).join('')}

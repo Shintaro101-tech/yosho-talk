@@ -7,6 +7,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 const CLOUD = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 const KEY = 'yoshotalk:data:v1';
+export const TALK_DRAFT_KEY = 'yoshotalk:talkDraft'; // a talk the app was closed in (talk.js)
 
 function fresh() {
   return {
@@ -49,14 +50,23 @@ export function save() {
 export const onChange = (fn) => listeners.add(fn);
 
 // Replaces everything (an account's data after login, or nothing after logout).
+// The settings object itself is kept (only its contents change): open pages hold on
+// to it, and their changes would otherwise go to an old copy.
 export function replaceData(d) {
   if (d !== data) {
     const f = fresh();
+    const settings = data.settings;
+    const nextSettings = { ...f.settings, ...(d?.settings || {}) };
     for (const k of Object.keys(data)) delete data[k];
-    Object.assign(data, f, d || {}, { settings: { ...f.settings, ...(d?.settings || {}) } });
+    for (const k of Object.keys(settings)) delete settings[k];
+    Object.assign(settings, nextSettings);
+    Object.assign(data, f, d || {}, { settings });
   }
   save();
 }
+
+// True when the word book already has this word or phrase.
+export const hasVocab = (term) => data.vocab.some((v) => v.term.toLowerCase() === String(term || '').trim().toLowerCase());
 
 // ---------- Monthly talk time ----------
 // Talk time is capped per calendar month (resets on the 1st) to keep API costs predictable.
@@ -159,10 +169,8 @@ export function importJSON(text) {
   if (!Array.isArray(d.books) || !Array.isArray(d.vocab)) throw new Error('洋書トークのバックアップファイルではありません');
   const f = fresh();
   // This month's talk time stays as it is (it isn't part of the backup's data).
-  Object.assign(data, f, d, { stats: { ...f.stats, ...d.stats }, settings: { ...f.settings, ...d.settings }, usage: data.usage });
-  save();
+  replaceData({ ...f, ...d, stats: { ...f.stats, ...d.stats }, usage: data.usage });
 }
 export function resetAll() {
-  Object.assign(data, fresh(), { usage: data.usage });
-  save();
+  replaceData({ usage: data.usage });
 }

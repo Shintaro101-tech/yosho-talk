@@ -20,3 +20,12 @@ namespace_id = "1001"
   [ratelimits.simple]
   limit = 20
   period = 60
+
+# 60 requests per minute per login (several people on one network don't share it).
+[[ratelimits]]
+name = "ACCOUNT_LIMITER"
+namespace_id = "1002"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60

@@ -9,7 +9,7 @@
 // only real changes are sent.
 
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
-import { data, replaceData, onChange } from './store.js';
+import { data, replaceData, onChange, TALK_DRAFT_KEY } from './store.js';
 import { relayPost, relayGet } from './api.js';
 import { toast } from './util.js';
 
@@ -290,9 +290,14 @@ export async function pushNow() {
 // Settings worth keeping in the account (everything the learner chose).
 const syncedSettings = () => ({ ...data.settings });
 
+// Also the dictionary's history and photo searches, so the next person on this device
+// doesn't see them.
 function forgetLocal() {
   localStorage.removeItem(OWNER_KEY);
   localStorage.removeItem(SYNCED_KEY);
+  localStorage.removeItem('yoshotalk:dict');
+  localStorage.removeItem('yoshotalk:images');
+  localStorage.removeItem(TALK_DRAFT_KEY);
   applying = true;
   replaceData(null);
   applying = false;

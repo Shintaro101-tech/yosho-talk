@@ -59,17 +59,20 @@ export default {
     const url = new URL(req.url);
     if (req.method === 'GET' && url.pathname === '/cover') return bookCover(url.searchParams.get('isbn'), cors);
 
-    if (env.LIMITER) {
-      const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
-      const { success } = await env.LIMITER.limit({ key: ip });
-      if (!success) return error(429, 'Too many requests. Please wait a minute.', cors);
+    // Requests per minute: per login (people on one school network share an IP address),
+    // otherwise per IP address (this also slows down passcode guessing).
+    const token = (req.headers.get('Authorization') || '').match(/^Bearer (.+)$/)?.[1];
+    const limiter = token ? env.ACCOUNT_LIMITER || env.LIMITER : env.LIMITER;
+    if (limiter) {
+      const key = token ? `t:${(await sha256(new TextEncoder().encode(token))).slice(0, 32)}` : req.headers.get('CF-Connecting-IP') || 'unknown';
+      const { success } = await limiter.limit({ key });
+      if (!success) return error(429, '短い時間に操作が多すぎました。1分ほど待ってからもう一度お試しください。', cors);
     }
 
     if (!env.PASSCODE || !env.OPENAI_API_KEY) return error(500, 'Server is not configured (missing secrets).', cors);
     const { pathname } = url;
 
     // Who is calling: an account (limited by its plan) or the owner (passcode, no limits).
-    const token = (req.headers.get('Authorization') || '').match(/^Bearer (.+)$/)?.[1];
     let account = null;
     if (token && env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY) {
       account = await loadAccount(env, token);
@@ -113,8 +116,7 @@ export default {
       if (pathname === '/live/sessions') {
         if (account.limits.talk_minutes <= 0) return error(402, '招待コードを入力すると、トークを使えるようになります。', cors, 'PLAN');
         if (account.limits.talk_minutes * 60 - account.usage.talk_seconds < 30) return error(402, '今月のトーク時間を使い切りました。来月1日にリセットされます。', cors, 'TALK_LIMIT');
-        // The first minute is counted when the talk starts; the app reports the rest.
-        await addUsage(env, account, 60);
+        // The app reports the talk time itself, a minute at a time (POST /usage/talk).
       } else if (req.method === 'POST' && pathname === '/responses') {
         const job = jobOf(await req.clone().json().catch(() => ({})));
         const limit = account.limits[`${job}_calls`];

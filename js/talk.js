@@ -1,5 +1,5 @@
-import { $, $$, esc, formatDuration, openDialog, toast, isEnglishName, NAME_PATTERN, NAME_HINT, checkNameField } from './util.js';
-import { data, save, getBook, addVocab, addTalk, talkUsage, addTalkSeconds } from './store.js';
+import { $, $$, esc, uid, today, formatDuration, openDialog, toast, isEnglishName, NAME_PATTERN, NAME_HINT, checkNameField } from './util.js';
+import { data, save, getBook, addVocab, addTalk, talkUsage, addTalkSeconds, hasVocab, TALK_DRAFT_KEY } from './store.js';
 import { ensurePasscode } from './api.js';
 import { AVATARS, avatarHTML, avatarKey, lipSync, voiceFor } from './avatars.js';
 import { LiveSession, responsesJSON } from './live.js';
@@ -39,10 +39,20 @@ const NEXT_LEVEL = { A2: 'B1', B1: 'B2', B2: 'C1', C1: 'C2', C2: 'C2' };
 
 let live = null;
 
+// A talk kept when the app went to the background mid-talk and was then closed: saved
+// to the history on the next start.
+export function recoverTalkDraft() {
+  let draft = null;
+  try { draft = JSON.parse(localStorage.getItem(TALK_DRAFT_KEY)); } catch { /* broken */ }
+  localStorage.removeItem(TALK_DRAFT_KEY);
+  if (!draft?.turns?.length || data.talks.some((t) => t.id === draft.id)) return;
+  addTalk(draft);
+  toast('前回、途中で閉じたトークの記録を「履歴」に保存しました', 'success');
+}
+
 // A word or phrase from the word book to practise: set by practiseWord(), picked up
 // when the talk page opens.
 let pendingPractice = null;
-const inWordBook = (term) => data.vocab.some((v) => v.term.toLowerCase() === String(term || '').trim().toLowerCase());
 export function practiseWord(v) {
   pendingPractice = {
     bookId: v.bookId || '',
@@ -508,7 +518,7 @@ export function renderTalk(el, [bookIdParam]) {
                 <li>
                   <span class="d-text">${esc(it.text)}</span>
                   ${it.note ? `<span class="d-note">${esc(it.note)}</span>` : ''}
-                  ${c.style === 'vocabulary' ? (it.saved || inWordBook(it.text)
+                  ${c.style === 'vocabulary' ? (it.saved || hasVocab(it.text)
                     ? '<button class="d-save" disabled>✓ 単語帳にあります</button>'
                     : `<button class="d-save" data-save="${ci}:${ii}" title="単語帳に追加">＋単語帳</button>`) : ''}
                 </li>`).join('')}
@@ -610,6 +620,7 @@ export function renderTalk(el, [bookIdParam]) {
     closeAskBox();
     state.practice = practice;
     state.nextPractice = null;
+    state.talkId = uid();
     state.reviewing = false;
     state.turns = [];
     state.saved = [];
@@ -849,15 +860,29 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
     state.status = 'ending';
     if (!silent) drawStage();
     if (live) await endSegment();
-    const durationSec = state.elapsedBefore;
     state.status = 'ended';
+    localStorage.removeItem(TALK_DRAFT_KEY);
     if (!state.turns.length) {
       if (!silent) { drawSetup(); drawStage(); }
       return;
     }
+    const practice = state.practice;
+    const talk = addTalk(talkRecord(state.elapsedBefore));
+    if (silent) return;
+    state.reviewing = true;
+    drawSetup();
+    drawStage();
+    if (practice) drawPracticeReview(talk, practice);
+    else drawReview(talk);
+    window.scrollTo(0, 0);
+  }
+
+  // What is kept of a talk (in the history and the account).
+  function talkRecord(durationSec) {
     const book = getBook(state.bookId);
     const practice = state.practice;
-    const talk = addTalk({
+    return {
+      id: state.talkId,
       bookId: state.bookId || null,
       bookTitle: book?.title || '',
       mode: practice ? 'practice' : state.mode,
@@ -869,15 +894,20 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
       display: state.shown,
       savedTerms: state.saved.map((v) => v.term),
       ...(practice ? { practiced: practice.map((p) => p.key_phrase) } : {}),
-    });
-    if (silent) return;
-    state.reviewing = true;
-    drawSetup();
-    drawStage();
-    if (practice) drawPracticeReview(talk, practice);
-    else drawReview(talk);
-    window.scrollTo(0, 0);
+    };
   }
+
+  // When the app goes to the background mid-talk, keep the talk so far: if it is then
+  // closed (swiped away), the next start saves it to the history (recoverTalkDraft).
+  function keepDraft() {
+    if (document.visibilityState !== 'hidden' || !state.turns.length) return;
+    if (!live && state.status !== 'paused') return;
+    const seg = state.segStart ? (Date.now() - state.segStart) / 1000 : 0;
+    const draft = { ...talkRecord(Math.round(state.elapsedBefore + seg)), date: today(), createdAt: Date.now() };
+    try { localStorage.setItem(TALK_DRAFT_KEY, JSON.stringify(draft)); } catch { /* full */ }
+  }
+  document.addEventListener('visibilitychange', keepDraft);
+  window.addEventListener('pagehide', keepDraft);
 
   const backBtn = `<button class="btn btn-ghost back-setup" data-back>← 最初の画面へ</button>`;
 
@@ -914,6 +944,10 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
       try {
         const result = await polish(talk, count, to);
         talk.feedback = { ...result, target: to };
+        // The account's data may have been read again since the talk ended (a new copy
+        // of every talk), so save it to the talk as it is now.
+        const current = data.talks.find((t) => t.id === talk.id);
+        if (current) current.feedback = talk.feedback;
         save();
         $('#countSeg', box).remove();
         box.querySelector('.mini.muted').remove();
@@ -943,7 +977,7 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
             <p class="key-phrase"><b>${esc(p.key_phrase)}</b> — ${esc(p.meaning_ja)}</p>`}
             ${p.why_ja ? `<p class="mini muted">${esc(p.why_ja)}</p>` : ''}
             <span class="row">
-              ${inWordBook(p.key_phrase)
+              ${hasVocab(p.key_phrase)
                 ? '<button class="btn btn-sm" disabled>✓ 単語帳にあります</button>'
                 : `<button class="btn btn-sm" data-add="${i}">＋単語帳</button>`}
               ${canUseAI() ? `<button class="btn btn-sm btn-ghost" data-ask="${i}">💬 質問する</button>` : ''}
@@ -1039,6 +1073,8 @@ Goal: help the learner move up to the next level by giving them EXACTLY ${count}
   return () => {
     closeAskBox();
     clearInterval(timer);
+    document.removeEventListener('visibilitychange', keepDraft);
+    window.removeEventListener('pagehide', keepDraft);
     if (live || state.status === 'paused') stop({ silent: true });
   };
 }

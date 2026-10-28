@@ -76,11 +76,12 @@ export class LiveSession {
   handle(ev) {
     switch (ev.type) {
       case 'session.started':
-        // With accounts, the relay counted the first minute; report each further minute.
+        // With accounts, report the talk time to the relay a minute at a time (several at
+        // once if the timer was held back while the app was in the background).
         this.liveAt = Date.now();
-        this.reported = 60;
+        this.reported = 0;
         this.beat = setInterval(() => {
-          if ((Date.now() - this.liveAt) / 1000 - this.reported >= 60) {
+          while ((Date.now() - this.liveAt) / 1000 - this.reported >= 60) {
             this.reported += 60;
             reportTalk(60).catch(() => {});
           }
@@ -153,8 +154,11 @@ export class LiveSession {
     }
     this.cleanup();
     if (this.liveAt) {
+      // The rest, in pieces of at most a minute (the relay takes up to 75 s per report).
       const total = result?.usage?.seconds ?? (Date.now() - this.liveAt) / 1000;
-      await reportTalk(Math.max(1, total - this.reported), true).catch(() => {});
+      let rest = total - this.reported;
+      while (rest > 75) { await reportTalk(60).catch(() => {}); rest -= 60; }
+      await reportTalk(Math.max(1, rest), true).catch(() => {});
     }
     return result;
   }

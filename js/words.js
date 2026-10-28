@@ -1,5 +1,8 @@
 import { $, $$, esc, openDialog, speak, toast } from './util.js';
-import { data, addVocab, updateVocab, deleteVocab, getBook } from './store.js';
+import { data, save, addVocab, updateVocab, deleteVocab, getBook } from './store.js';
+import { getPasscode } from './api.js';
+import { responsesJSON } from './live.js';
+import { searchImages, picturesHTML } from './images.js';
 import { bookCover } from './books.js';
 import { openAskBox, closeAskBox } from './askbox.js';
 
@@ -46,6 +49,7 @@ export function renderWords(el) {
     };
     $('#bf', el).onchange = (e) => { bookFilter = e.target.value; draw(); };
     $$('[data-speak]', el).forEach((b) => (b.onclick = () => speak(b.dataset.speak)));
+    $$('[data-pics]', el).forEach((b) => (b.onclick = () => togglePictures(b.closest('.word'))));
     $$('[data-ask]', el).forEach((b) => (b.onclick = () => ask.prefill(`「${b.dataset.ask}」について：`)));
     $$('[data-edit]', el).forEach((b) => (b.onclick = () => openWordForm(data.vocab.find((v) => v.id === b.dataset.edit), draw)));
     $$('[data-del]', el).forEach((b) => (b.onclick = () => {
@@ -56,27 +60,92 @@ export function renderWords(el) {
   // Floating chat for questions about the words (the newest 60 are given as context).
   const ask = openAskBox({ words: data.vocab.slice(0, 60), level: data.settings.level });
   draw();
+  addEmoji(el);
   return closeAskBox;
 }
 
 function wordRow(v) {
   const book = v.bookId ? getBook(v.bookId) : null;
   return `
-    <li class="word card">
+    <li class="word card" data-id="${v.id}">
       <div class="word-head">
-        <h3>${v.emoji ? `<span class="word-emoji" aria-hidden="true">${esc(v.emoji)}</span>` : ''}${esc(v.term)}</h3>
+        <h3 data-pics>${v.emoji ? `<span class="word-emoji" aria-hidden="true">${esc(v.emoji)}</span>` : ''}${esc(v.term)}</h3>
         <button class="icon-btn" data-speak="${esc(v.term)}" aria-label="発音を聞く">🔊</button>
         <a class="icon-btn" href="#/dict/${encodeURIComponent(v.term)}" aria-label="辞書で見る" title="辞書で見る">📖</a>
-        <span class="spacer"></span>
-        <button class="icon-btn" data-ask="${esc(v.term)}" aria-label="この語について質問" title="この語について質問">💬</button>
-        <button class="icon-btn" data-edit="${v.id}" aria-label="編集">✏️</button>
-        <button class="icon-btn" data-del="${v.id}" aria-label="削除">🗑️</button>
+        <button class="icon-btn" data-pics aria-label="イメージ写真を見る" title="イメージ写真">🖼️</button>
+        <span class="word-actions">
+          <button class="icon-btn" data-ask="${esc(v.term)}" aria-label="この語について質問" title="この語について質問">💬</button>
+          <button class="icon-btn" data-edit="${v.id}" aria-label="編集">✏️</button>
+          <button class="icon-btn" data-del="${v.id}" aria-label="削除">🗑️</button>
+        </span>
       </div>
+      <div class="word-pics dict-pics" hidden></div>
       <p class="meaning">${esc(v.meaning)}</p>
       ${v.example ? `<p class="example">${esc(v.example)} <button class="icon-btn sm" data-speak="${esc(v.example)}" aria-label="例文を聞く">🔊</button></p>` : ''}
       ${v.note ? `<p class="mini muted">${esc(v.note)}</p>` : ''}
       ${book ? `<a class="word-book" href="#/book/${book.id}" title="この語が出てきた本">${bookCover(book, 'xs')}<span>${esc(book.title)}</span></a>` : ''}
     </li>`;
+}
+
+// Photos for a word, searched when its card is opened (not kept: Pixabay's rule).
+async function togglePictures(card) {
+  const box = $('.word-pics', card);
+  if (!box.hidden) { box.hidden = true; return; }
+  const v = data.vocab.find((x) => x.id === card.dataset.id);
+  if (!v) return;
+  box.hidden = false;
+  box.innerHTML = '<p class="mini muted">写真を探しています…</p>';
+  const images = await searchImages(v.imageQuery || v.term);
+  box.innerHTML = images.length ? picturesHTML(images) : '<p class="mini muted">写真が見つかりませんでした。</p>';
+}
+
+// Words without emoji (saved in talks, from feedback, or before the dictionary had
+// them) get emoji and a photo search phrase, a batch at a time, in the background.
+let addingEmoji = false;
+async function addEmoji(el) {
+  if (addingEmoji || !getPasscode()) return;
+  addingEmoji = true;
+  try {
+    let todo;
+    while ((todo = data.vocab.filter((v) => !v.visualDone).slice(0, 40)).length) {
+      const { items } = await responsesJSON({
+        instructions: `For each English word or phrase (from a Japanese learner's word book), give:
+- emoji: 1–3 emoji that picture its meaning (serendipity → "🍀✨"), or "" if none fits.
+- image_query: 1–3 English words to search a photo library for a picture of its meaning — what the picture should show, not always the word itself (serendipity → "happy coincidence", run → "man running"); "" for words that can't be pictured.
+Return one item per input line, with the same n.`,
+        input: todo.map((v, n) => `${n}. ${v.term}${v.meaning ? ` (${v.meaning})` : ''}`).join('\n'),
+        schemaName: 'word_visuals',
+        schema: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['items'],
+          properties: {
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['n', 'emoji', 'image_query'],
+                properties: { n: { type: 'integer' }, emoji: { type: 'string' }, image_query: { type: 'string' } },
+              },
+            },
+          },
+        },
+      });
+      for (const it of items) {
+        const v = todo[it.n];
+        if (!v) continue;
+        v.emoji = it.emoji;
+        v.imageQuery = it.image_query;
+        // Shown in place, so a search the learner is typing isn't interrupted.
+        const h = $(`.word[data-id="${v.id}"] h3`, el);
+        if (h && v.emoji && !$('.word-emoji', h)) h.insertAdjacentHTML('afterbegin', `<span class="word-emoji" aria-hidden="true">${esc(v.emoji)}</span>`);
+      }
+      todo.forEach((v) => (v.visualDone = true)); // even if one was skipped: don't ask again
+      save();
+    }
+  } catch { /* offline or relay unavailable: try again next time */ }
+  addingEmoji = false;
 }
 
 function openWordForm(v, done) {

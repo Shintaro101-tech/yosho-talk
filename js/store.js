@@ -91,7 +91,8 @@ export function addVocab(v) {
   if (!term) return null;
   const existing = data.vocab.find((x) => x.term.toLowerCase() === term.toLowerCase());
   if (existing) {
-    for (const k of ['meaning', 'example', 'note']) if (!existing[k] && v[k]) existing[k] = v[k];
+    for (const k of ['meaning', 'example', 'note', 'emoji', 'imageQuery']) if (!existing[k] && v[k]) existing[k] = v[k];
+    if ('emoji' in v) existing.visualDone = true;
     save();
     return existing;
   }
@@ -102,6 +103,8 @@ export function addVocab(v) {
     example: v.example || '',
     note: v.note || '',
     emoji: v.emoji || '',
+    imageQuery: v.imageQuery || '',
+    visualDone: 'emoji' in v, // emoji chosen (by the dictionary or the word book's batch)
     bookId: v.bookId || null,
     source: v.source || 'manual',
     createdAt: Date.now(),

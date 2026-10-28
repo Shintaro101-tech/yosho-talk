@@ -805,3 +805,10 @@ a.icon-btn { text-decoration: none; }
 @media (max-width: 900px) {
   .dict-pic img { height: 84px; max-width: 128px; }
 }
+.word-head h3[data-pics] { cursor: pointer; }
+.word-pics { margin: 8px 0 4px; }
+.word { min-width: 0; }
+.word-head { flex-wrap: wrap; row-gap: 2px; }
+.word-head h3 { overflow-wrap: anywhere; }
+@media (max-width: 900px) { .word-head { gap: 0; } .word-head .icon-btn { padding: 4px 5px; } }
+.word-actions { display: flex; margin-left: auto; }

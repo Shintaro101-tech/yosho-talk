@@ -7,13 +7,13 @@
 
 import { $, $$, esc, toast } from './util.js';
 import { data, addVocab, getBook } from './store.js';
-import { ensurePasscode, relayPost } from './api.js';
+import { ensurePasscode } from './api.js';
+import { searchImages, picturesHTML } from './images.js';
 import { responsesJSON } from './live.js';
 import { bookCover } from './books.js';
 
 const CACHE_KEY = 'yoshotalk:dict';
 const CACHE_MAX = 40;
-const IMAGE_TTL = 24 * 60 * 60 * 1000; // Pixabay asks for search results to be cached 24 hours
 let bookChoice = ''; // the book new words are tagged with
 let bookPicked = false; // chosen by the learner (kept while the app is open)
 
@@ -167,7 +167,7 @@ export function renderDict(el, [param]) {
       if (entry.found) {
         const shown = entry;
         findRecordings(entry.headword).then((a) => { if (entry === shown) { audio = a; drawAudioButtons(); } });
-        findImages(entry, cache).then((list) => { if (entry === shown) { images = list; drawPictures(); } });
+        searchImages(entry.image_query).then((list) => { if (entry === shown) { images = list; drawPictures(); } });
       }
     } catch (err) {
       out.innerHTML = `<div class="card dict-entry"><p>調べられませんでした：${esc(err.message)}</p></div>`;
@@ -251,6 +251,7 @@ export function renderDict(el, [param]) {
         example: s.example_en || '',
         note: [e.ipa_us && `${e.ipa_us}`, s.pos_ja, e.usage_ja].filter(Boolean).join(' ・ '),
         emoji: e.emoji,
+        imageQuery: e.image_query,
         bookId: bookChoice || null,
         source: 'dictionary',
       });
@@ -266,18 +267,12 @@ export function renderDict(el, [param]) {
     }));
   }
 
-  // Emoji, then up to three photos (each links to its Pixabay page, as Pixabay asks).
+  // Emoji, then up to three photos.
   function drawPictures() {
     const box = $('#dictPics', out);
     if (!box || !entry?.found) return;
-    const pics = images.slice(0, 3);
-    box.hidden = !entry.emoji && !pics.length;
-    box.innerHTML = `
-      <div class="dict-pic-row">
-        ${entry.emoji ? `<span class="dict-emoji" aria-hidden="true">${esc(entry.emoji)}</span>` : ''}
-        ${pics.map((p) => `<a class="dict-pic" href="${esc(p.page)}" target="_blank" rel="noopener" title="Pixabay: ${esc(p.user)}"><img src="${esc(p.src)}" alt="${esc(p.tags)}" loading="lazy"></a>`).join('')}
-      </div>
-      ${pics.length ? '<a class="dict-credit" href="https://pixabay.com/" target="_blank" rel="noopener">Images: Pixabay</a>' : ''}`;
+    box.hidden = !entry.emoji && !images.length;
+    box.innerHTML = picturesHTML(images, entry.emoji);
   }
 
   // Pronunciation: IPA with a play button for each accent (recording if there is one).
@@ -307,25 +302,6 @@ export function renderDict(el, [param]) {
   drawRecent();
   if (param) lookUp(param);
   else setTimeout(() => form.q.focus(), 50);
-}
-
-// Photos for the entry's image_query, kept for 24 hours with the cached entry.
-async function findImages(entry, cache) {
-  const q = entry.image_query?.trim();
-  if (!q) return [];
-  const key = keyOf(entry.headword);
-  const kept = cache.entries[key]?.images;
-  if (kept && Date.now() - kept.at < IMAGE_TTL) return kept.list;
-  try {
-    const res = await relayPost('/images', { q });
-    if (!res.ok) return []; // not set up (no PIXABAY_KEY) or unavailable: emoji only
-    const { images = [] } = await res.json();
-    if (cache.entries[key]) {
-      cache.entries[key].images = { at: Date.now(), list: images };
-      saveCache(cache);
-    }
-    return images;
-  } catch { return []; }
 }
 
 // Recordings from Free Dictionary API (Wiktionary audio), by accent.

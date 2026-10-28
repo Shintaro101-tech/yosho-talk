@@ -303,7 +303,8 @@ export function renderTalk(el, [bookIdParam]) {
     lastInput: 0, // when the learner last said something
     shownAt: 0, // when something was last put on the display
     claim: null, // { at, said }: the avatar said it would show something on the display
-    endAt: 0, // when the avatar asked to end the talk (end_talk)
+    endAt: 0, // when the avatar asked to end the talk (end_talk), or said goodbye
+    endAuto: false, // endAt came from a goodbye the app noticed, not from end_talk
     reviewing: false,
     tab: 'display', // display tab shown: 'display' (cards) or 'script'
     unseen: false, // new cards arrived while the Script tab was open
@@ -588,6 +589,7 @@ export function renderTalk(el, [bookIdParam]) {
     state.muted = false;
     state.elapsedBefore = 0;
     state.endAt = 0;
+    state.endAuto = false;
     if (practice) {
       // Put the phrases on the display straight away; no need to wait for the avatar.
       state.shown.push({
@@ -674,6 +676,7 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
         if (fn === 'show_on_display') return showOnDisplay(args);
         if (fn === 'end_talk') {
           state.endAt = Date.now();
+          state.endAuto = false;
           return { ok: true, note: 'The app will end the talk once your goodbye has been spoken.' };
         }
         if (fn === 'show_script') return setTab(args.show !== false ? 'script' : 'display');
@@ -716,9 +719,15 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
     if (left <= 0) {
       toast(`今月のトーク時間（${talkUsage().limit / 60}分）を使い切ったので終了しました。`, 'error');
       stop();
+    } else if (state.endAt && state.lastInput > state.endAt + 1000) {
+      state.endAt = 0; // the learner kept talking after the goodbye
     } else if (state.endAt && goodbyeDone()) {
+      if (state.endAuto && !farewell()) { state.endAt = 0; return; } // the goodbye turned into a question
       toast('会話が終わったので、トークを終了しました', 'success');
       stop();
+    } else if (!state.endAt && farewell()) {
+      state.endAt = Date.now(); // said goodbye without delegating end_talk
+      state.endAuto = true;
     } else if (Date.now() - state.lastActivity > IDLE_MS) {
       pause();
     } else {
@@ -752,6 +761,18 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
       delegation_id: null,
       content: `You told ${s.userName || 'the learner'} "${c.said}", but nothing new has appeared on the display. Delegate the request to show it on the display now, with the full text to show. If you speak, keep it to a few words like "There — it's on the display now."`,
     });
+  }
+
+  // The voice model sometimes says goodbye without delegating end_talk. The talk also
+  // ends when the learner's last turn says they want to finish and the avatar's reply
+  // is a goodbye (not a question such as "Shall we finish here?").
+  const BYE_LEARNER = /\b(have to go|got to go|gotta go|need to go|must go|should go|have to leave|need to leave|(that's|that is) (all|it) for (today|now)|let's (stop|finish|end|wrap)|stop here|finish here|end (the|this|our) (talk|conversation|chat)|good ?bye|bye|see you|talk to you (later|soon)|nice (talking|chatting)|thank(s| you) for (today|talking|chatting|the (talk|chat|conversation)))\b/i;
+  const BYE_AVATAR = /\b(good ?bye|bye|see you|take care|talk (to you )?(soon|later|again|next time)|have a (great|good|nice|lovely|wonderful) (day|evening|night|weekend|one)|enjoy the rest|(lovely|nice|great|a pleasure|wonderful) (talking|chatting))\b/i;
+  function farewell() {
+    const [u, a] = state.turns.slice(-2);
+    if (u?.role !== 'user' || a?.role !== 'assistant') return false;
+    const ending = a.text.trim().split(/(?<=[.?!])\s+/).slice(-2).join(' '); // the goodbye comes last
+    return BYE_LEARNER.test(u.text) && BYE_AVATAR.test(ending) && !/\?$/.test(ending);
   }
 
   // After end_talk: wait until the avatar has finished its goodbye (quiet for 2 s,

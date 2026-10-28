@@ -66,6 +66,7 @@ function wordRow(v) {
       <div class="word-head">
         <h3>${esc(v.term)}</h3>
         <button class="icon-btn" data-speak="${esc(v.term)}" aria-label="発音を聞く">🔊</button>
+        <a class="icon-btn" href="#/dict/${encodeURIComponent(v.term)}" aria-label="辞書で見る" title="辞書で見る">📖</a>
         <span class="spacer"></span>
         <button class="icon-btn" data-ask="${esc(v.term)}" aria-label="この語について質問" title="この語について質問">💬</button>
         <button class="icon-btn" data-edit="${v.id}" aria-label="編集">✏️</button>

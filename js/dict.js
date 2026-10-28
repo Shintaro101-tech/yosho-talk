@@ -131,9 +131,25 @@ export function renderDict(el, [param]) {
     const box = $('#dictRecent', el);
     const recent = cache.recent.filter((k) => cache.entries[k]?.found);
     box.innerHTML = recent.length ? `
-      <h2 class="dict-recent-title">最近調べた語</h2>
-      <ul class="chips dict-recent">${recent.map((k) => `<li><button data-look="${esc(cache.entries[k].headword)}">${esc(cache.entries[k].headword)}</button></li>`).join('')}</ul>` : '';
+      <div class="dict-recent-head">
+        <h2 class="dict-recent-title">最近調べた語</h2>
+        <button class="link-btn" data-clear>すべて消す</button>
+      </div>
+      <ul class="chips dict-recent">${recent.map((k) => `
+        <li><button data-look="${esc(cache.entries[k].headword)}">${esc(cache.entries[k].headword)}</button><button class="dict-forget" data-forget="${esc(k)}" aria-label="${esc(cache.entries[k].headword)} を履歴から消す">×</button></li>`).join('')}</ul>` : '';
     $$('[data-look]', box).forEach((b) => (b.onclick = () => lookUp(b.dataset.look)));
+    // Removing a word from the history also drops its saved entry (it is looked up again next time).
+    $$('[data-forget]', box).forEach((b) => (b.onclick = () => {
+      cache.recent = cache.recent.filter((k) => k !== b.dataset.forget);
+      saveCache(cache);
+      drawRecent();
+    }));
+    $('[data-clear]', box)?.addEventListener('click', () => {
+      if (!confirm('最近調べた語の履歴をすべて消しますか？（単語帳の単語は消えません）')) return;
+      cache.recent = [];
+      saveCache(cache);
+      drawRecent();
+    });
   };
 
   async function lookUp(q, ctx = '') {

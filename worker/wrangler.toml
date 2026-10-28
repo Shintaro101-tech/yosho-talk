@@ -10,7 +10,7 @@ BACKEND_MODEL = "gpt-5.5"
 # Cheaper model for short jobs: dictionary entries, questions about phrases, word emoji.
 LIGHT_MODEL = "gpt-5.4-mini"
 # Supabase project URL for accounts (Project Settings → API). Leave empty to use the passcode only.
-SUPABASE_URL = ""
+SUPABASE_URL = "https://irxctretkjjyxjsasrvi.supabase.co"
 
 # 20 requests per minute per IP (slows down passcode guessing).
 [[ratelimits]]

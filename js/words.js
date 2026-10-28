@@ -5,6 +5,7 @@ import { responsesJSON } from './live.js';
 import { searchImages, picturesHTML } from './images.js';
 import { bookCover } from './books.js';
 import { openAskBox, closeAskBox } from './askbox.js';
+import { canUseAI } from './cloud.js';
 
 let query = '';
 let bookFilter = '';
@@ -73,7 +74,7 @@ function wordRow(v) {
         <button class="icon-btn" data-speak="${esc(v.term)}" aria-label="発音を聞く">🔊</button>
         <button class="icon-btn" data-pics aria-label="イメージ写真を見る" title="イメージ写真">🖼️</button>
         <span class="word-actions">
-          <button class="icon-btn" data-ask="${esc(v.term)}" aria-label="この語について質問" title="この語について質問">💬</button>
+          ${canUseAI() ? `<button class="icon-btn" data-ask="${esc(v.term)}" aria-label="この語について質問" title="この語について質問">💬</button>` : ''}
           <button class="icon-btn" data-edit="${v.id}" aria-label="編集">✏️</button>
           <button class="icon-btn" data-del="${v.id}" aria-label="削除">🗑️</button>
         </span>

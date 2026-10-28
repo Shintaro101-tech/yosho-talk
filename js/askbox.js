@@ -4,6 +4,7 @@
 import { $, esc } from './util.js';
 import { ensurePasscode } from './api.js';
 import { responsesText } from './live.js';
+import { canUseAI } from './cloud.js';
 
 let current = null;
 
@@ -12,6 +13,7 @@ let current = null;
 export function openAskBox({ phrases = [], words = [], level, bookTitle }) {
   const suggestions = phrases.length ? phrases.map((p) => p.key_phrase) : words.map((w) => w.term);
   closeAskBox();
+  if (!canUseAI()) return { prefill() {} }; // free plan: no question chat
   const history = []; // [{ role, content }]
   const root = document.createElement('div');
   root.className = 'askbox';

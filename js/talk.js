@@ -5,6 +5,7 @@ import { AVATARS, avatarHTML, avatarKey, lipSync, voiceFor } from './avatars.js'
 import { LiveSession, responsesJSON } from './live.js';
 import { bookCover } from './books.js';
 import { openAskBox, closeAskBox } from './askbox.js';
+import { canUseAI } from './cloud.js';
 
 export const MODES = {
   impressions: {
@@ -886,7 +887,7 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
             <p class="mini muted">${esc(p.why_ja)}</p>
             <span class="row">
               <button class="btn btn-sm" data-add="${i}">＋単語帳</button>
-              <button class="btn btn-sm btn-ghost" data-ask="${i}">💬 質問する</button>
+              ${canUseAI() ? `<button class="btn btn-sm btn-ghost" data-ask="${i}">💬 質問する</button>` : ''}
             </span>
           </li>`).join('')}
       </ul>`;

@@ -31,6 +31,8 @@ export const currentAccount = () => account;
 export const userEmail = () => session?.user?.email || '';
 // Talk, feedback, dictionary… are available (a trial or paid plan).
 export const hasAccess = () => Boolean(account && account.limits.talk_minutes + account.limits.ai_calls > 0);
+// The question chat, dictionary… (not on the free plan, so they aren't shown there).
+export const canUseAI = () => !CLOUD || (account ? account.limits.ai_calls : data.usage?.aiLimit ?? 0) > 0;
 
 export async function getToken() {
   if (!sb) return null;

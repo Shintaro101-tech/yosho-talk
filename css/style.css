@@ -485,6 +485,8 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
 .review-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 .count-seg { margin-top: 4px; }
 .polished-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 10px; }
+.practice-done { font-size: 1rem; margin: 16px 0 0; }
+.practice-done small { font-size: .8rem; font-weight: 400; margin-left: 6px; }
 .polished-list li { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .polished-list p { margin: 0; }
 .polished-list small { display: inline-block; min-width: 64px; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }

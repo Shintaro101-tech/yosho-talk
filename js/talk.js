@@ -42,6 +42,7 @@ let live = null;
 // A word or phrase from the word book to practise: set by practiseWord(), picked up
 // when the talk page opens.
 let pendingPractice = null;
+const inWordBook = (term) => data.vocab.some((v) => v.term.toLowerCase() === String(term || '').trim().toLowerCase());
 export function practiseWord(v) {
   pendingPractice = {
     bookId: v.bookId || '',
@@ -507,7 +508,9 @@ export function renderTalk(el, [bookIdParam]) {
                 <li>
                   <span class="d-text">${esc(it.text)}</span>
                   ${it.note ? `<span class="d-note">${esc(it.note)}</span>` : ''}
-                  ${c.style === 'vocabulary' ? `<button class="d-save" data-save="${ci}:${ii}" title="単語帳に追加">${it.saved ? '✓' : '＋単語帳'}</button>` : ''}
+                  ${c.style === 'vocabulary' ? (it.saved || inWordBook(it.text)
+                    ? '<button class="d-save" disabled>✓ 単語帳にあります</button>'
+                    : `<button class="d-save" data-save="${ci}:${ii}" title="単語帳に追加">＋単語帳</button>`) : ''}
                 </li>`).join('')}
             ${c.style === 'questions' ? '</ol>' : '</ul>'}
           </section>`).join('')}
@@ -925,17 +928,24 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
     };
   }
 
+  // Feedback phrases: what the learner said → the polished line. Word-book phrases
+  // (practised from the word book) show the phrase and its example sentence instead.
   function phraseCards(list) {
     return `
       <ul class="polished-list">
         ${list.map((p, i) => `
           <li>
+            ${p.source === 'words' ? `
+            <p class="key-phrase"><b>${esc(p.key_phrase)}</b>${p.meaning_ja ? ` — ${esc(p.meaning_ja)}` : ''}</p>
+            ${p.polished ? `<p class="polished"><small>例文</small><span>${highlight(p.polished, p.key_phrase)}</span></p>` : ''}` : `
             ${p.you_said ? `<p class="you-said"><small>あなた</small><s>${esc(p.you_said)}</s></p>` : ''}
             <p class="polished"><small>Polished</small><span>${highlight(p.polished, p.key_phrase)}</span></p>
-            <p class="key-phrase"><b>${esc(p.key_phrase)}</b> — ${esc(p.meaning_ja)}</p>
-            <p class="mini muted">${esc(p.why_ja)}</p>
+            <p class="key-phrase"><b>${esc(p.key_phrase)}</b> — ${esc(p.meaning_ja)}</p>`}
+            ${p.why_ja ? `<p class="mini muted">${esc(p.why_ja)}</p>` : ''}
             <span class="row">
-              <button class="btn btn-sm" data-add="${i}">＋単語帳</button>
+              ${inWordBook(p.key_phrase)
+                ? '<button class="btn btn-sm" disabled>✓ 単語帳にあります</button>'
+                : `<button class="btn btn-sm" data-add="${i}">＋単語帳</button>`}
               ${canUseAI() ? `<button class="btn btn-sm btn-ghost" data-ask="${i}">💬 質問する</button>` : ''}
             </span>
           </li>`).join('')}
@@ -968,13 +978,16 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
 
   function drawPracticeReview(talk, list) {
     const box = $('#review', el);
+    const fromWords = list.some((p) => p.source === 'words');
     box.innerHTML = `
       <div class="card review-card">
         <h2>練習おつかれさまでした！ 💪</h2>
-        <p class="muted">${formatDuration(talk.durationSec)} 練習しました。今日のフレーズを単語帳に入れて、くり返し使ってみましょう。</p>
+        <p class="muted">${formatDuration(talk.durationSec)} 練習しました。くり返し使って、自分の言葉にしていきましょう。</p>
+        <h3 class="practice-done">今日練習した${list.length === 1 ? '語' : '語・フレーズ'} <small class="muted">${fromWords ? '単語帳より' : 'トークのフィードバックより'}</small></h3>
         ${phraseCards(list)}
         <div class="review-actions">
           <button class="btn btn-primary" id="again">🔁 もう一度練習する</button>
+          ${fromWords ? '<a class="btn" href="#/words">🗂️ 単語帳に戻る</a>' : ''}
           ${backBtn}
         </div>
       </div>`;

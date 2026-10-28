@@ -92,7 +92,7 @@ Answer their questions about these expressions, grammar, vocabulary, nuance or u
     history.push({ role: 'user', content: text });
     const wait = add('ai', '<span class="ask-typing"><i></i><i></i><i></i></span>');
     try {
-      const answer = await responsesText({ instructions, input: history.slice(-12) });
+      const answer = await responsesText({ instructions, input: history.slice(-12), light: true });
       history.push({ role: 'assistant', content: answer });
       wait.innerHTML = format(answer);
     } catch (err) {

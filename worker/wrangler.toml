@@ -7,6 +7,8 @@ compatibility_date = "2026-10-01"
 ALLOWED_ORIGINS = "https://shintaro101-tech.github.io,http://localhost:8765"
 # Model used for saving words during a talk and for the after-talk feedback.
 BACKEND_MODEL = "gpt-5.5"
+# Cheaper model for short jobs: dictionary entries, questions about phrases, word emoji.
+LIGHT_MODEL = "gpt-5.4-mini"
 # Supabase project URL for accounts (Project Settings → API). Leave empty to use the passcode only.
 SUPABASE_URL = ""
 

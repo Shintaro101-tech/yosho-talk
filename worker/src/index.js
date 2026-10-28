@@ -19,7 +19,7 @@
 //
 // Secrets (wrangler secret put): OPENAI_API_KEY, PASSCODE, PIXABAY_KEY (optional),
 //   SUPABASE_SERVICE_KEY, INVITE_CODE (accounts)
-// Vars (wrangler.toml): ALLOWED_ORIGINS, BACKEND_MODEL, SUPABASE_URL
+// Vars (wrangler.toml): ALLOWED_ORIGINS, BACKEND_MODEL, LIGHT_MODEL, SUPABASE_URL
 
 const OPENAI = 'https://api.openai.com/v1';
 const MAX_BODY = 200_000;
@@ -104,7 +104,8 @@ export default {
       } else if (['/responses', '/images', '/voices'].includes(pathname)) {
         if (account.limits.ai_calls <= 0) return error(402, '招待コードを入力すると、この機能を使えるようになります。', cors, 'PLAN');
         if (account.usage.ai_calls >= account.limits.ai_calls) return error(402, '今月の AI 機能（辞書・フィードバックなど）の利用回数の上限に達しました。来月1日にリセットされます。', cors, 'AI_LIMIT');
-        await addUsage(env, account, 0, 1);
+        // Photo searches are free (Pixabay), so they don't use up the allowance.
+        if (pathname !== '/images') await addUsage(env, account, 0, 1);
       }
     }
 
@@ -143,7 +144,8 @@ export default {
         body = { type: 'prompt', model: 'auto', name, prompt };
       } else {
         body = {
-          model: env.BACKEND_MODEL,
+          // light: a cheaper model for short jobs (dictionary, questions, emoji).
+          model: body.light ? env.LIGHT_MODEL || 'gpt-5.4-mini' : env.BACKEND_MODEL,
           instructions: body.instructions,
           input: body.input,
           text: body.text,

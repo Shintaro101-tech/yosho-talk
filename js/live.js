@@ -181,8 +181,10 @@ function waitForIce(pc, timeoutMs) {
 
 // One-shot Responses API call that returns parsed JSON (structured output).
 // The model is chosen by the relay (BACKEND_MODEL).
-export async function responsesJSON({ instructions, input, schemaName, schema }) {
+// light: use the cheaper model (dictionary, questions, emoji); feedback uses the main one.
+export async function responsesJSON({ instructions, input, schemaName, schema, light = false }) {
   const res = await relayPost('/responses', {
+    light,
     instructions,
     input,
     text: { format: { type: 'json_schema', name: schemaName, schema, strict: true } },
@@ -196,8 +198,8 @@ export async function responsesJSON({ instructions, input, schemaName, schema })
 
 // One-shot Responses API call that returns plain text (e.g. the review chat).
 // input: a string, or [{ role: 'user' | 'assistant', content }].
-export async function responsesText({ instructions, input }) {
-  const res = await relayPost('/responses', { instructions, input });
+export async function responsesText({ instructions, input, light = false }) {
+  const res = await relayPost('/responses', { instructions, input, light });
   const j = await res.json();
   if (!res.ok) throw new Error(j.error?.message || `HTTP ${res.status}`);
   return (j.output_text

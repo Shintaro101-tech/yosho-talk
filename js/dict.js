@@ -168,6 +168,7 @@ export function renderDict(el, [param]) {
         instructions: INSTRUCTIONS,
         input: `Word or phrase: ${q}${ctx ? `\nSentence where the reader met it: ${ctx}` : ''}`,
         schemaName: 'dictionary_entry',
+        light: true,
         schema: SCHEMA,
       });
       if (!ctx) {

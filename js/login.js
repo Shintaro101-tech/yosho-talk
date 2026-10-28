@@ -1,6 +1,6 @@
 // Login / sign-up (#/login), used when accounts are on (cloud.js).
 
-import { $, $$, esc, toast, updateApp } from './util.js';
+import { $, $$, esc, toast, updateApp, NAME_PATTERN, NAME_HINT, checkNameField } from './util.js';
 import { signIn, signUp, resetPassword, signedIn } from './cloud.js';
 
 let mode = 'login'; // 'login' | 'signup'
@@ -19,7 +19,7 @@ export function renderLogin(el) {
         </div>
         <form class="card form login-form">
           ${mode === 'signup' ? `
-          <label>あなたの呼び名（アバターがこの名前で呼びます）<input name="name" maxlength="30" required placeholder="例: Shin" autocomplete="given-name"></label>` : ''}
+          <label>あなたの呼び名（英語のつづり・ローマ字で。アバターがこの名前で呼びます）<input name="name" maxlength="30" required placeholder="例: Shin" autocomplete="given-name" pattern="${NAME_PATTERN}" title="${NAME_HINT}"></label>` : ''}
           <label>メールアドレス<input name="email" type="email" required autocomplete="email" inputmode="email" value="${esc(email)}"></label>
           <label>パスワード${mode === 'signup' ? '（6文字以上）' : ''}<input name="password" type="password" required minlength="6" autocomplete="${mode === 'signup' ? 'new-password' : 'current-password'}"></label>
           ${message ? `<p class="mini login-msg">${message}</p>` : ''}
@@ -31,6 +31,7 @@ export function renderLogin(el) {
       </section>`;
     $$('[data-mode]', el).forEach((b) => (b.onclick = () => { mode = b.dataset.mode; draw(); }));
     const form = $('.login-form', el);
+    checkNameField(form.querySelector('input[name=name]'));
     form.onsubmit = async (e) => {
       e.preventDefault();
       const btn = form.querySelector('.btn-primary');

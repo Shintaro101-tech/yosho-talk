@@ -1,4 +1,4 @@
-import { $, $$, esc, formatDuration, openDialog, toast } from './util.js';
+import { $, $$, esc, formatDuration, openDialog, toast, isEnglishName, NAME_PATTERN, NAME_HINT, checkNameField } from './util.js';
 import { data, save, getBook, addVocab, addTalk, talkUsage, addTalkSeconds } from './store.js';
 import { ensurePasscode } from './api.js';
 import { AVATARS, avatarHTML, avatarKey, lipSync, voiceFor } from './avatars.js';
@@ -263,14 +263,15 @@ export function askUserName() {
     const dlg = openDialog(`
       <form class="form">
         <h2>👋 あなたの呼び名</h2>
-        <p class="mini muted">アバターが会話のなかであなたを呼ぶ名前です（例：Shintaro, Shin, Mr. Horikawa）。あとから「設定」で変更できます。</p>
-        <input name="name" required maxlength="30" value="${esc(data.settings.userName || '')}" placeholder="Your name" autocomplete="given-name">
+        <p class="mini muted">アバターが会話のなかであなたを呼ぶ名前です。<b>英語のつづり（ローマ字）</b>で入力してください（例：Shintaro, Shin, Mr. Horikawa）。あとから「設定」で変更できます。</p>
+        ${data.settings.userName && !isEnglishName(data.settings.userName) ? '<p class="mini ng">今の呼び名は日本語なので、アバターが正しく読めないことがあります。ローマ字に直してください。</p>' : ''}
+        <input name="name" required maxlength="30" value="${esc(data.settings.userName || '')}" placeholder="Your name" autocomplete="given-name" pattern="${NAME_PATTERN}" title="${NAME_HINT}">
         <div class="actions">
           <button type="button" class="btn btn-ghost" data-close>キャンセル</button>
           <button class="btn btn-primary">保存</button>
         </div>
       </form>`, {
-      onOpen: (d) => d.querySelector('input').focus(),
+      onOpen: (d) => { checkNameField(d.querySelector('input')); d.querySelector('input').focus(); },
       onSubmit: (fd) => {
         data.settings.userName = String(fd.get('name')).trim();
         save();
@@ -568,7 +569,7 @@ export function renderTalk(el, [bookIdParam]) {
 
   // practice: polished phrases to practise (from the review), or null for a normal talk.
   async function start(practice = null) {
-    if (!s.userName && !(await askUserName())) return;
+    if (!isEnglishName(s.userName) && !(await askUserName())) return;
     drawSetup();
     if (!(await ensurePasscode())) return;
     drawSetup(); // the plan may have changed (an invite code)

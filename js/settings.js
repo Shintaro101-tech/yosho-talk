@@ -1,4 +1,4 @@
-import { $, esc, toast, updateApp } from './util.js';
+import { $, esc, toast, updateApp, NAME_PATTERN, NAME_HINT, checkNameField } from './util.js';
 import { data, save, exportJSON, importJSON, resetAll } from './store.js';
 import { getPasscode, setPasscode, checkPasscode, ensurePasscode } from './api.js';
 import { installApp, isInstalled } from './install.js';
@@ -11,9 +11,9 @@ export function renderSettings(el) {
 
     <form class="card form" id="nameForm">
       <h2>👋 あなたの呼び名</h2>
-      <p class="mini muted">アバターが会話のなかであなたを呼ぶ名前です（例：Shintaro, Shin, Mr. Horikawa）。</p>
+      <p class="mini muted">アバターが会話のなかであなたを呼ぶ名前です。<b>英語のつづり（ローマ字）</b>で入力してください（例：Shintaro, Shin, Mr. Horikawa）。</p>
       <div class="row">
-        <input name="name" maxlength="30" value="${esc(s.userName || '')}" placeholder="Your name" autocomplete="given-name">
+        <input name="name" maxlength="30" value="${esc(s.userName || '')}" placeholder="Your name" autocomplete="given-name" pattern="${NAME_PATTERN}" title="${NAME_HINT}">
         <button class="btn btn-primary">保存</button>
       </div>
     </form>
@@ -50,6 +50,7 @@ export function renderSettings(el) {
     <p class="about"><button class="link-btn" id="update">🔄 最新版に更新</button></p>`;
 
   $('#install', el)?.addEventListener('click', installApp);
+  checkNameField($('#nameForm input[name=name]', el));
   $('#update', el).onclick = (e) => { e.target.disabled = true; e.target.textContent = '更新しています…'; updateApp(); };
   if (CLOUD) {
     bindAccount(el);

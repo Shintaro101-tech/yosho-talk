@@ -96,3 +96,16 @@ export async function updateApp() {
   await Promise.all([...new Set(files)].map((u) => fetch(u, { cache: 'reload' }).catch(() => {})));
   location.reload();
 }
+
+// The name the avatar calls the learner is written in English letters, so that the
+// avatar can say it (a name in kanji may be read wrongly or switch it into Japanese).
+export const NAME_PATTERN = "[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ .'\\-]*";
+export const NAME_HINT = '英語のつづり（ローマ字）で入力してください（例：Shintaro, Shin）';
+export const isEnglishName = (s) => new RegExp(`^${NAME_PATTERN}$`).test(String(s || '').trim());
+// Shows NAME_HINT (in Japanese) when a name field is not in English letters.
+export function checkNameField(input) {
+  if (!input) return;
+  const check = () => input.setCustomValidity(!input.value || isEnglishName(input.value) ? '' : NAME_HINT);
+  input.addEventListener('input', check);
+  check();
+}

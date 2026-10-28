@@ -115,7 +115,7 @@ async function addEmoji() {
 Return one item per input line, with the same n.`,
         input: todo.map((v, n) => `${n}. ${v.term}${v.meaning ? ` (${v.meaning})` : ''}`).join('\n'),
         schemaName: 'word_visuals',
-        light: true,
+        kind: 'visual',
         schema: {
           type: 'object',
           additionalProperties: false,

@@ -30,6 +30,8 @@ export async function checkPasscode(pass) {
 
 // True when relay features (talk, feedback, dictionary…) can be used right now.
 export const relayReady = () => (CLOUD ? signedIn() && hasAccess() : Boolean(getPasscode()));
+// Photo search is free, so every signed-in account may use it.
+export const relayOpen = () => (CLOUD ? signedIn() : Boolean(getPasscode()));
 
 // Makes sure relay features can be used: with accounts, a login and a plan (an invite
 // code for now); otherwise a valid passcode. Resolves true when ready, false if not.

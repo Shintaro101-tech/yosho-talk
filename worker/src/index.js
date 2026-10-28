@@ -9,7 +9,7 @@
 //   POST /usage/talk     -> { seconds }: talk time, reported by the app every minute
 //   POST /account/delete -> deletes the account and all its data
 //   POST /live/sessions  -> OpenAI POST /v1/live/sessions (GPT-Live WebRTC SDP exchange)
-//   POST /responses      -> OpenAI POST /v1/responses   (word extraction / feedback)
+//   POST /responses      -> OpenAI POST /v1/responses   ({ kind }: dict | ask | feedback | visual)
 //   POST /voices         -> OpenAI POST /v1/audio/voices (prompt-to-voice: create a custom voice)
 //   GET  /cover?isbn=…   -> a Japanese book's cover image (no passcode; images only)
 //   POST /images         -> Pixabay image search for the dictionary ({ q } → a few pictures)
@@ -23,6 +23,19 @@
 
 const OPENAI = 'https://api.openai.com/v1';
 const MAX_BODY = 200_000;
+
+// The jobs the app sends to /responses. Each has its own monthly limit (plans table) and
+// model: feedback after a talk uses the main model, the short jobs the cheaper one.
+// dict: dictionary entries, ask: the question chat, visual: photo keywords for word-book
+// words (made in the background, so the learner never sees this count).
+const JOBS = {
+  dict: { light: true, limit: '今月の辞書の利用回数が上限に達しました' },
+  ask: { light: true, limit: '今月の質問チャットの利用回数が上限に達しました' },
+  feedback: { light: false, limit: '今月のフィードバックの回数が上限に達しました' },
+  visual: { light: true, limit: '今月の単語の写真キーワードの作成が上限に達しました' },
+};
+// Old app versions send only "light".
+const jobOf = (body) => (JOBS[body.kind] ? body.kind : body.light ? 'dict' : 'feedback');
 
 export default {
   async fetch(req, env) {
@@ -84,7 +97,7 @@ export default {
       if (req.method === 'POST' && pathname === '/usage/talk') {
         // At most a little over a minute per report (the app reports every minute).
         const seconds = Math.min(75, Math.max(0, Math.round(Number((await req.json().catch(() => ({}))).seconds) || 0)));
-        const usage = await addUsage(env, account, seconds, 0);
+        const usage = await addUsage(env, account, seconds);
         return json(publicAccount({ ...account, usage }), 200, cors);
       }
 
@@ -94,18 +107,20 @@ export default {
         return json({ ok: true }, 200, cors);
       }
 
-      // Everything below uses OpenAI or Pixabay: check this month's allowance first.
+      // Everything below uses OpenAI: check this month's allowance first.
+      // (Photo searches are free, so every account may use them.)
       if (pathname === '/voices' && account.plan !== 'admin') return error(403, 'この機能は管理者だけが使えます。', cors);
       if (pathname === '/live/sessions') {
         if (account.limits.talk_minutes <= 0) return error(402, '招待コードを入力すると、トークを使えるようになります。', cors, 'PLAN');
         if (account.limits.talk_minutes * 60 - account.usage.talk_seconds < 30) return error(402, '今月のトーク時間を使い切りました。来月1日にリセットされます。', cors, 'TALK_LIMIT');
         // The first minute is counted when the talk starts; the app reports the rest.
-        await addUsage(env, account, 60, 0);
-      } else if (['/responses', '/images', '/voices'].includes(pathname)) {
-        if (account.limits.ai_calls <= 0) return error(402, '招待コードを入力すると、この機能を使えるようになります。', cors, 'PLAN');
-        if (account.usage.ai_calls >= account.limits.ai_calls) return error(402, '今月の AI 機能（辞書・フィードバックなど）の利用回数の上限に達しました。来月1日にリセットされます。', cors, 'AI_LIMIT');
-        // Photo searches are free (Pixabay), so they don't use up the allowance.
-        if (pathname !== '/images') await addUsage(env, account, 0, 1);
+        await addUsage(env, account, 60);
+      } else if (req.method === 'POST' && pathname === '/responses') {
+        const job = jobOf(await req.clone().json().catch(() => ({})));
+        const limit = account.limits[`${job}_calls`];
+        if (limit <= 0) return error(402, '招待コードを入力すると、この機能を使えるようになります。', cors, 'PLAN');
+        if (account.usage[`${job}_calls`] >= limit) return error(402, `${JOBS[job].limit}。来月1日にリセットされます。`, cors, 'AI_LIMIT');
+        await addUsage(env, account, 0, job);
       }
     }
 
@@ -144,8 +159,7 @@ export default {
         body = { type: 'prompt', model: 'auto', name, prompt };
       } else {
         body = {
-          // light: a cheaper model for short jobs (dictionary, questions, emoji).
-          model: body.light ? env.LIGHT_MODEL || 'gpt-5.4-mini' : env.BACKEND_MODEL,
+          model: JOBS[jobOf(body)].light ? env.LIGHT_MODEL || 'gpt-5.4-mini' : env.BACKEND_MODEL,
           instructions: body.instructions,
           input: body.input,
           text: body.text,
@@ -244,27 +258,32 @@ async function loadAccount(env, token) {
   const { id, email } = await who.json();
   const month = monthJST();
   const [profiles, usage] = await Promise.all([
-    supabase(env, `/rest/v1/profiles?id=eq.${id}&select=plan,plans(label,talk_minutes,ai_calls)`).then((r) => r.json()),
-    supabase(env, `/rest/v1/usage?user_id=eq.${id}&month=eq.${month}&select=talk_seconds,ai_calls`).then((r) => r.json()),
+    supabase(env, `/rest/v1/profiles?id=eq.${id}&select=plan,plans(label,${LIMITS.join(',')})`).then((r) => r.json()),
+    supabase(env, `/rest/v1/usage?user_id=eq.${id}&month=eq.${month}&select=${COUNTS.join(',')}`).then((r) => r.json()),
   ]);
-  const p = profiles?.[0] || { plan: 'free', plans: { label: '未登録', talk_minutes: 0, ai_calls: 0 } };
+  const p = profiles?.[0] || { plan: 'free', plans: { label: '未登録' } };
   return {
     id, email, month,
     plan: p.plan,
     label: p.plans?.label || p.plan,
-    limits: { talk_minutes: p.plans?.talk_minutes ?? 0, ai_calls: p.plans?.ai_calls ?? 0 },
-    usage: usage?.[0] || { talk_seconds: 0, ai_calls: 0 },
+    limits: Object.fromEntries(LIMITS.map((k) => [k, p.plans?.[k] ?? 0])),
+    usage: counts(usage?.[0]),
   };
 }
 
-async function addUsage(env, account, seconds, calls) {
+const LIMITS = ['talk_minutes', ...Object.keys(JOBS).map((j) => `${j}_calls`)];
+const COUNTS = ['talk_seconds', ...Object.keys(JOBS).map((j) => `${j}_calls`)];
+const counts = (row) => Object.fromEntries(COUNTS.map((k) => [k, row?.[k] ?? 0]));
+
+// Adds talk seconds and/or one call of a job to this month's usage.
+async function addUsage(env, account, seconds, job = null) {
   const res = await supabase(env, '/rest/v1/rpc/add_usage', {
     method: 'POST',
-    body: JSON.stringify({ p_user: account.id, p_month: account.month, p_seconds: seconds, p_calls: calls }),
+    body: JSON.stringify({ p_user: account.id, p_month: account.month, p_seconds: seconds, p_job: job }),
   });
   const row = await res.json();
   const u = Array.isArray(row) ? row[0] : row;
-  return u?.talk_seconds != null ? { talk_seconds: u.talk_seconds, ai_calls: u.ai_calls } : account.usage;
+  return u?.talk_seconds != null ? counts(u) : account.usage;
 }
 
 const publicAccount = (a) => ({ email: a.email, plan: a.plan, label: a.label, month: a.month, limits: a.limits, usage: a.usage });

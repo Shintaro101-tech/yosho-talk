@@ -30,9 +30,9 @@ export const signedIn = () => Boolean(session);
 export const currentAccount = () => account;
 export const userEmail = () => session?.user?.email || '';
 // Talk, feedback, dictionary… are available (a trial or paid plan).
-export const hasAccess = () => Boolean(account && account.limits.talk_minutes + account.limits.ai_calls > 0);
+export const hasAccess = () => Boolean(account && account.limits.talk_minutes + account.limits.dict_calls > 0);
 // The question chat, dictionary… (not on the free plan, so they aren't shown there).
-export const canUseAI = () => !CLOUD || (account ? account.limits.ai_calls : data.usage?.aiLimit ?? 0) > 0;
+export const canUseAI = () => !CLOUD || (account ? account.limits.ask_calls : data.usage?.askLimit ?? 0) > 0;
 
 export async function getToken() {
   if (!sb) return null;
@@ -142,7 +142,7 @@ export async function refreshAccount() {
 export function setAccount(a) {
   account = a;
   applying = true;
-  data.usage = { month: a.month, seconds: a.usage.talk_seconds, limitMin: a.limits.talk_minutes, aiCalls: a.usage.ai_calls, aiLimit: a.limits.ai_calls, plan: a.plan, label: a.label };
+  data.usage = { month: a.month, seconds: a.usage.talk_seconds, limitMin: a.limits.talk_minutes, askLimit: a.limits.ask_calls, plan: a.plan, label: a.label };
   replaceData(data);
   applying = false;
 }

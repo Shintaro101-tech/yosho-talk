@@ -108,16 +108,16 @@ function bindPasscode(el) {
 
 function accountSection() {
   const a = currentAccount();
-  const u = a?.usage || { talk_seconds: 0, ai_calls: 0 };
-  const l = a?.limits || { talk_minutes: 0, ai_calls: 0 };
+  const u = a?.usage || { talk_seconds: 0 };
+  const l = a?.limits || { talk_minutes: 0 };
   return `
     <section class="card form account">
       <h2>👤 アカウント</h2>
       <p><b>${esc(userEmail())}</b></p>
       <p class="mini">プラン：<b>${esc(a?.label || '確認中…')}</b></p>
-      ${l.talk_minutes + l.ai_calls > 0 ? `
-      <p class="mini muted">今月の利用：トーク ${Math.floor(u.talk_seconds / 60)} / ${l.talk_minutes}分 ・ AI 機能（辞書・フィードバックなど） ${u.ai_calls} / ${l.ai_calls}回</p>`
-      : '<p class="mini muted">トーク・フィードバック・辞書は、招待コードを入力すると使えるようになります。</p><div class="row"><button class="btn btn-primary" id="redeem">🎟️ 招待コードを入力</button></div>'}
+      ${l.talk_minutes > 0 ? `
+      <p class="mini muted">今月のトーク：${Math.floor(u.talk_seconds / 60)} / ${l.talk_minutes}分（辞書・質問は使い放題）</p>`
+      : '<p class="mini muted">トーク・フィードバック・辞書・質問は、招待コードを入力すると使えるようになります。</p><div class="row"><button class="btn btn-primary" id="redeem">🎟️ 招待コードを入力</button></div>'}
       <div class="actions-left">
         <button class="btn btn-ghost" id="newPass">パスワードを変更</button>
         <button class="btn" id="logout">ログアウト</button>

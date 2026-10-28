@@ -953,6 +953,7 @@ Goal: help the learner move up to the next level by giving them EXACTLY ${count}
 2. feedback_ja: one or two warm, specific sentences in Japanese about what went well.`,
       input: transcript,
       schemaName: 'polished_feedback',
+      kind: 'feedback',
       schema: {
         type: 'object',
         additionalProperties: false,

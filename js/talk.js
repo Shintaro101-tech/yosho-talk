@@ -128,6 +128,7 @@ There is a screen next to you that ${name} can see. Use it to make important lan
 - ${name} asks you to show or write something ("Can you show it on the display?", "Can you write it down?", "Could you put that on the screen?") — show whatever they ask for.
 If ${name} asks to see the conversation itself as text ("Can you show our conversation on the display?", "Can you show the script?"), delegate a request to switch the screen to the live script; delegate switching back when they ask. Then say something short like "Sure, the script is on the screen now."
 When you put something new on the display while ${name} may be looking at the script, mention it ("I've put it on the display — have a look at the Display tab.").
+IMPORTANT: the display only changes when you delegate. Whenever you mention the display ("I'll put some questions on the display", "Here are some questions"), delegate the request in that same turn, with the full text to show (for questions: every question) — never just say it. If you are not going to delegate, don't mention the display.
 Keep display text short. You can say "I've put it on the display."`;
 
 function buildPracticeInstructions({ book, avatar, level, name, phrases }) {
@@ -297,6 +298,9 @@ export function renderTalk(el, [bookIdParam]) {
     segStart: 0,
     lastActivity: 0,
     lastOutput: 0, // when the avatar last said something
+    lastInput: 0, // when the learner last said something
+    shownAt: 0, // when something was last put on the display
+    claim: null, // { at, said }: the avatar said it would show something on the display
     endAt: 0, // when the avatar asked to end the talk (end_talk)
     reviewing: false,
     tab: 'display', // display tab shown: 'display' (cards) or 'script'
@@ -542,6 +546,7 @@ export function renderTalk(el, [bookIdParam]) {
     if (!items.length) return { ok: false, error: 'nothing to show' };
     const style = ['questions', 'vocabulary', 'note'].includes(args.style) ? args.style : 'note';
     state.shown.unshift({ heading: args.heading || 'Note', style, items });
+    state.shownAt = Date.now();
     if (state.tab === 'script') state.unseen = true;
     drawDisplay();
     displayEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -650,8 +655,12 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
       },
       onRemoteStream: (stream) => meter.attach(stream, $('#avatarBox', el)),
       onEvent: (ev) => {
-        if (ev.type === 'session.input_transcript.delta') { addTranscript('user', ev.delta); state.lastActivity = Date.now(); }
-        else if (ev.type === 'session.output_transcript.delta') { addTranscript('assistant', ev.delta); state.lastActivity = state.lastOutput = Date.now(); }
+        if (ev.type === 'session.input_transcript.delta') { addTranscript('user', ev.delta); state.lastActivity = state.lastInput = Date.now(); }
+        else if (ev.type === 'session.output_transcript.delta') {
+          addTranscript('assistant', ev.delta);
+          state.lastActivity = state.lastOutput = Date.now();
+          noticeDisplayClaim();
+        }
         else if (ev.type === 'response.event') state.lastActivity = Date.now();
         else if (ev.type === 'error') {
           console.warn('GPT-Live error', ev);
@@ -709,7 +718,37 @@ ${transcript || '(nothing yet)'}${shown ? `\nAlready on the display:\n${shown}` 
       stop();
     } else if (Date.now() - state.lastActivity > IDLE_MS) {
       pause();
+    } else {
+      checkDisplayClaim();
     }
+  }
+
+  // The voice model sometimes says it has put something on the display without
+  // delegating it. Notice such sentences in what the avatar says...
+  const CLAIM = /\b(put|putting|show|showing|write|writing|add|adding|display|displaying|pop|popping|here are|here's)\b[^.?!]{0,50}\b(display|screen)\b/i;
+  function noticeDisplayClaim() {
+    const turn = state.turns[state.turns.length - 1];
+    if (!turn || turn.role !== 'assistant' || turn.claimed) return;
+    const sentence = turn.text.split(/(?<=[.?!])\s+/).find((x) => CLAIM.test(x) && !/script|conversation|transcript/i.test(x));
+    if (!sentence) return;
+    turn.claimed = true; // once per turn
+    state.claim = { at: Date.now(), said: sentence.trim() };
+  }
+  // ...and if nothing new has appeared once the avatar has finished speaking, remind it
+  // (once) to delegate it now.
+  function checkDisplayClaim() {
+    const c = state.claim;
+    if (!c) return;
+    const now = Date.now();
+    if (state.shownAt > c.at - 60_000) { state.claim = null; return; } // it did show something (just before or after)
+    if (now - c.at < 6000 || now - state.lastOutput < 1500 || now - state.lastInput < 1500) return;
+    state.claim = null;
+    live?.send({
+      type: 'session.commentary.append',
+      event_id: `display_${now}`,
+      delegation_id: null,
+      content: `You told ${s.userName || 'the learner'} "${c.said}", but nothing new has appeared on the display. Delegate the request to show it on the display now, with the full text to show. If you speak, keep it to a few words like "There — it's on the display now."`,
+    });
   }
 
   // After end_talk: wait until the avatar has finished its goodbye (quiet for 2 s,

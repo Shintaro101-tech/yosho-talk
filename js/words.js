@@ -60,7 +60,7 @@ export function renderWords(el) {
   // Floating chat for questions about the words (the newest 60 are given as context).
   const ask = openAskBox({ words: data.vocab.slice(0, 60), level: data.settings.level });
   draw();
-  addEmoji(el);
+  addEmoji();
   return closeAskBox;
 }
 
@@ -69,9 +69,8 @@ function wordRow(v) {
   return `
     <li class="word card" data-id="${v.id}">
       <div class="word-head">
-        <h3 data-pics>${v.emoji ? `<span class="word-emoji" aria-hidden="true">${esc(v.emoji)}</span>` : ''}${esc(v.term)}</h3>
+        <h3 data-pics>${esc(v.term)}</h3>
         <button class="icon-btn" data-speak="${esc(v.term)}" aria-label="発音を聞く">🔊</button>
-        <a class="icon-btn" href="#/dict/${encodeURIComponent(v.term)}" aria-label="辞書で見る" title="辞書で見る">📖</a>
         <button class="icon-btn" data-pics aria-label="イメージ写真を見る" title="イメージ写真">🖼️</button>
         <span class="word-actions">
           <button class="icon-btn" data-ask="${esc(v.term)}" aria-label="この語について質問" title="この語について質問">💬</button>
@@ -99,10 +98,10 @@ async function togglePictures(card) {
   box.innerHTML = images.length ? picturesHTML(images) : '<p class="mini muted">写真が見つかりませんでした。</p>';
 }
 
-// Words without emoji (saved in talks, from feedback, or before the dictionary had
-// them) get emoji and a photo search phrase, a batch at a time, in the background.
+// Words without a photo search phrase (saved in talks, from feedback, or before the
+// dictionary had them) get one, a batch at a time, in the background.
 let addingEmoji = false;
-async function addEmoji(el) {
+async function addEmoji() {
   if (addingEmoji || !getPasscode()) return;
   addingEmoji = true;
   try {
@@ -137,9 +136,6 @@ Return one item per input line, with the same n.`,
         if (!v) continue;
         v.emoji = it.emoji;
         v.imageQuery = it.image_query;
-        // Shown in place, so a search the learner is typing isn't interrupted.
-        const h = $(`.word[data-id="${v.id}"] h3`, el);
-        if (h && v.emoji && !$('.word-emoji', h)) h.insertAdjacentHTML('afterbegin', `<span class="word-emoji" aria-hidden="true">${esc(v.emoji)}</span>`);
       }
       todo.forEach((v) => (v.visualDone = true)); // even if one was skipped: don't ask again
       save();

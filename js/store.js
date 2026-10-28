@@ -101,6 +101,7 @@ export function addVocab(v) {
     meaning: v.meaning || '',
     example: v.example || '',
     note: v.note || '',
+    emoji: v.emoji || '',
     bookId: v.bookId || null,
     source: v.source || 'manual',
     createdAt: Date.now(),

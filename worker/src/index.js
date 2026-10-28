@@ -6,11 +6,12 @@
 //   POST /responses      -> OpenAI POST /v1/responses   (word extraction / feedback)
 //   POST /voices         -> OpenAI POST /v1/audio/voices (prompt-to-voice: create a custom voice)
 //   GET  /cover?isbn=…   -> a Japanese book's cover image (no passcode; images only)
+//   POST /images         -> Pixabay image search for the dictionary ({ q } → a few pictures)
 //
 // Only the WebRTC handshake passes through here; the voice audio itself flows
 // directly between the browser and OpenAI.
 //
-// Secrets (wrangler secret put): OPENAI_API_KEY, PASSCODE
+// Secrets (wrangler secret put): OPENAI_API_KEY, PASSCODE, PIXABAY_KEY (optional)
 // Vars (wrangler.toml): ALLOWED_ORIGINS, BACKEND_MODEL
 
 const OPENAI = 'https://api.openai.com/v1';
@@ -50,6 +51,20 @@ export default {
     const { pathname } = url;
 
     if (req.method === 'GET' && pathname === '/check') return json({ ok: true }, 200, cors);
+
+    if (req.method === 'POST' && pathname === '/images') {
+      if (!env.PIXABAY_KEY) return error(501, 'Image search is not set up (PIXABAY_KEY).', cors);
+      let q = '';
+      try { q = String((await req.json()).q || '').trim().slice(0, 100); } catch { /* checked below */ }
+      if (!q) return error(400, 'Give a search word.', cors);
+      const params = new URLSearchParams({ key: env.PIXABAY_KEY, q, lang: 'en', safesearch: 'true', per_page: '6', orientation: 'horizontal' });
+      const upstream = await fetch(`https://pixabay.com/api/?${params}`);
+      if (!upstream.ok) return error(502, `Pixabay returned ${upstream.status}.`, cors);
+      const { hits = [] } = await upstream.json();
+      // Only what the app shows: the picture, its Pixabay page and who made it.
+      const images = hits.map((h) => ({ src: h.webformatURL, page: h.pageURL, user: h.user, tags: h.tags }));
+      return json({ images }, 200, cors);
+    }
 
     if (req.method === 'POST' && (pathname === '/live/sessions' || pathname === '/responses' || pathname === '/voices')) {
       const text = await req.text();

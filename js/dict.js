@@ -3,24 +3,28 @@
 // and add it to the word book in one tap.
 // The entry is written by the backend model through the relay; real recordings of the
 // pronunciation come from Free Dictionary API (Wiktionary), else the browser's voice.
+// Each entry has emoji, and photos from Pixabay (searched by the relay) when it's set up.
 
 import { $, $$, esc, toast } from './util.js';
 import { data, addVocab, getBook } from './store.js';
-import { ensurePasscode } from './api.js';
+import { ensurePasscode, relayPost } from './api.js';
 import { responsesJSON } from './live.js';
 import { bookCover } from './books.js';
 
 const CACHE_KEY = 'yoshotalk:dict';
 const CACHE_MAX = 40;
+const IMAGE_TTL = 24 * 60 * 60 * 1000; // Pixabay asks for search results to be cached 24 hours
 let bookChoice = ''; // the book new words are tagged with
 let bookPicked = false; // chosen by the learner (kept while the app is open)
 
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['found', 'headword', 'lemma_note_ja', 'ipa_us', 'ipa_uk', 'cefr', 'forms_ja', 'senses', 'context_ja', 'collocations', 'synonyms', 'usage_ja', 'candidates'],
+  required: ['found', 'emoji', 'image_query', 'headword', 'lemma_note_ja', 'ipa_us', 'ipa_uk', 'cefr', 'forms_ja', 'senses', 'context_ja', 'collocations', 'synonyms', 'usage_ja', 'candidates'],
   properties: {
     found: { type: 'boolean' },
+    emoji: { type: 'string' },
+    image_query: { type: 'string' },
     headword: { type: 'string' },
     lemma_note_ja: { type: 'string' },
     ipa_us: { type: 'string' },
@@ -77,6 +81,8 @@ Given an English word or phrase (phrasal verbs and idioms too), write its entry:
 - context_ja: if a sentence where the reader met the word is given, explain in Japanese which sense it is and what it means there; else "".
 - collocations: 0–5 common collocations or set phrases with Japanese meanings.
 - synonyms: 0–5 near synonyms.
+- emoji: 1–3 emoji that picture the main sense (serendipity → "🍀✨"), or "" if none fits.
+- image_query: 1–3 English words to search a photo library for a picture of the main sense — what the picture should show, not always the word itself (serendipity → "happy coincidence", melancholy → "sad person window rain", run → "man running"). "" for words that can't be pictured (of, whether, the).
 - usage_ja: 1–2 sentences in Japanese on nuance, register (formal / informal / literary) or common mistakes; "" if nothing useful.
 - If the query is Japanese, or not English, or too misspelled to tell: found false, empty entry fields, and candidates = up to 5 English words or phrases it may mean, each with meaning_ja. Otherwise candidates = [].`;
 
@@ -94,6 +100,7 @@ export function renderDict(el, [param]) {
   const cache = loadCache();
   let entry = null;
   let audio = {}; // { us, uk, au }: recording URLs
+  let images = []; // [{ src, page, user }] from Pixabay
   let busy = false;
   if (!bookPicked) bookChoice = data.books.find((b) => b.status === 'reading')?.id || '';
 
@@ -154,9 +161,14 @@ export function renderDict(el, [param]) {
         saveCache(cache);
       }
       audio = {};
+      images = [];
       drawEntry(q);
       drawRecent();
-      if (entry.found) findRecordings(entry.headword).then((a) => { audio = a; drawAudioButtons(); });
+      if (entry.found) {
+        const shown = entry;
+        findRecordings(entry.headword).then((a) => { if (entry === shown) { audio = a; drawAudioButtons(); } });
+        findImages(entry, cache).then((list) => { if (entry === shown) { images = list; drawPictures(); } });
+      }
     } catch (err) {
       out.innerHTML = `<div class="card dict-entry"><p>調べられませんでした：${esc(err.message)}</p></div>`;
     }
@@ -184,6 +196,7 @@ export function renderDict(el, [param]) {
         </header>
         ${e.lemma_note_ja ? `<p class="mini muted">${esc(e.lemma_note_ja)}</p>` : ''}
         <div class="dict-pron" id="dictPron"></div>
+        <div class="dict-pics" id="dictPics"></div>
         ${e.forms_ja ? `<p class="mini dict-forms">${esc(e.forms_ja)}</p>` : ''}
         ${e.context_ja ? `<div class="dict-context"><b>この文では</b><p>${esc(e.context_ja)}</p></div>` : ''}
 
@@ -218,6 +231,7 @@ export function renderDict(el, [param]) {
         </footer>
       </article>`;
     drawAudioButtons();
+    drawPictures();
 
     $$('[data-say]', out).forEach((b) => (b.onclick = () => say(b.dataset.say, 'us')));
     $$('[data-look]', out).forEach((b) => (b.onclick = () => lookUp(b.dataset.look)));
@@ -236,6 +250,7 @@ export function renderDict(el, [param]) {
         meaning: e.senses.map((x) => x.meaning_ja).slice(0, 3).join('；'),
         example: s.example_en || '',
         note: [e.ipa_us && `${e.ipa_us}`, s.pos_ja, e.usage_ja].filter(Boolean).join(' ・ '),
+        emoji: e.emoji,
         bookId: bookChoice || null,
         source: 'dictionary',
       });
@@ -249,6 +264,20 @@ export function renderDict(el, [param]) {
       b.disabled = true;
       b.textContent = '✓ 追加';
     }));
+  }
+
+  // Emoji, then up to three photos (each links to its Pixabay page, as Pixabay asks).
+  function drawPictures() {
+    const box = $('#dictPics', out);
+    if (!box || !entry?.found) return;
+    const pics = images.slice(0, 3);
+    box.hidden = !entry.emoji && !pics.length;
+    box.innerHTML = `
+      <div class="dict-pic-row">
+        ${entry.emoji ? `<span class="dict-emoji" aria-hidden="true">${esc(entry.emoji)}</span>` : ''}
+        ${pics.map((p) => `<a class="dict-pic" href="${esc(p.page)}" target="_blank" rel="noopener" title="Pixabay: ${esc(p.user)}"><img src="${esc(p.src)}" alt="${esc(p.tags)}" loading="lazy"></a>`).join('')}
+      </div>
+      ${pics.length ? '<a class="dict-credit" href="https://pixabay.com/" target="_blank" rel="noopener">Images: Pixabay</a>' : ''}`;
   }
 
   // Pronunciation: IPA with a play button for each accent (recording if there is one).
@@ -278,6 +307,25 @@ export function renderDict(el, [param]) {
   drawRecent();
   if (param) lookUp(param);
   else setTimeout(() => form.q.focus(), 50);
+}
+
+// Photos for the entry's image_query, kept for 24 hours with the cached entry.
+async function findImages(entry, cache) {
+  const q = entry.image_query?.trim();
+  if (!q) return [];
+  const key = keyOf(entry.headword);
+  const kept = cache.entries[key]?.images;
+  if (kept && Date.now() - kept.at < IMAGE_TTL) return kept.list;
+  try {
+    const res = await relayPost('/images', { q });
+    if (!res.ok) return []; // not set up (no PIXABAY_KEY) or unavailable: emoji only
+    const { images = [] } = await res.json();
+    if (cache.entries[key]) {
+      cache.entries[key].images = { at: Date.now(), list: images };
+      saveCache(cache);
+    }
+    return images;
+  } catch { return []; }
 }
 
 // Recordings from Free Dictionary API (Wiktionary audio), by accent.

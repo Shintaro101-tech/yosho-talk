@@ -795,3 +795,13 @@ a.icon-btn { text-decoration: none; }
   .yt-link span { display: none; }
   .yt-link { padding: 6px; }
 }
+.dict-pics { margin: 10px 0; }
+.dict-pic-row { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.dict-emoji { font-size: 2.6rem; line-height: 1; padding: 0 6px; flex: 0 0 auto; }
+.dict-pic { flex: 0 0 auto; }
+.dict-pic img { display: block; height: 96px; width: auto; max-width: 150px; object-fit: cover; border-radius: 10px; background: var(--surface-2); }
+.dict-credit { display: inline-block; margin-top: 2px; font-size: .7rem; color: var(--muted); }
+.word-emoji { margin-right: 6px; }
+@media (max-width: 900px) {
+  .dict-pic img { height: 84px; max-width: 128px; }
+}

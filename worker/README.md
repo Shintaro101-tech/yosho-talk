@@ -7,6 +7,7 @@ OpenAI API キーをここに預け、アプリ（GitHub Pages）からはキー
 - 1つの IP アドレスにつき 1分20回まで（合言葉の総当たり対策）
 - 使うモデルはサーバー側で固定（GPT-Live は `gpt-live-1`、単語保存・抽出は `BACKEND_MODEL`）
 - オリジナルの声の作成（prompt-to-voice、`/v1/audio/voices`）も中継します
+- 辞書のイメージ写真を Pixabay で検索します（`PIXABAY_KEY` を登録したときだけ）
 - 中継するのは接続開始時の情報だけ。会話の音声はブラウザと OpenAI が直接やり取り
 
 ## 初回セットアップ（ターミナルで実行）
@@ -44,6 +45,22 @@ OpenAI API キーをここに預け、アプリ（GitHub Pages）からはキー
    ```
 
    表示された URL（`https://yosho-talk-api.<あなたのサブドメイン>.workers.dev`）を `js/config.js` の `DEPLOYED_WORKER_URL` に設定します。
+
+## 辞書のイメージ写真（Pixabay・任意）
+
+1. https://pixabay.com/ で無料アカウントを作ってログインします。
+2. https://pixabay.com/api/docs/ を開くと、ページ内の「key」の欄に API キーが表示されます。
+3. キーを登録して、公開し直します。
+
+   ```bash
+   npx wrangler secret put PIXABAY_KEY
+   ```
+
+   ```bash
+   npx wrangler deploy
+   ```
+
+キーがなくても辞書は使えます（写真の代わりに絵文字だけを表示します）。
 
 ## あとから変更するとき
 

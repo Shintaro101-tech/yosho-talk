@@ -39,6 +39,17 @@ const NEXT_LEVEL = { A2: 'B1', B1: 'B2', B2: 'C1', C1: 'C2', C2: 'C2' };
 
 let live = null;
 
+// A word or phrase from the word book to practise: set by practiseWord(), picked up
+// when the talk page opens.
+let pendingPractice = null;
+export function practiseWord(v) {
+  pendingPractice = {
+    bookId: v.bookId || '',
+    phrases: [{ key_phrase: v.term, meaning_ja: v.meaning || '', polished: v.example || '', why_ja: v.note || '', source: 'words' }],
+  };
+  location.hash = '#/talk';
+}
+
 const STATUS_LABEL = { reading: '読書中', finished: '読了', want: '読みたい' };
 // Books for the talk picker: reading first, then finished (latest first), then want-to-read.
 function talkBooks() {
@@ -135,16 +146,17 @@ Keep display text short. You can say "I've put it on the display."`;
 function buildPracticeInstructions({ book, avatar, level, name, phrases }) {
   const a = AVATARS[avatar];
   const one = phrases.length === 1;
-  const list = phrases.map((p, i) => `${i + 1}. "${p.key_phrase}" — e.g. "${p.polished}" (meaning: ${p.meaning_ja}; ${name} had said: "${p.you_said}")`).join('\n');
+  const fromWords = phrases.some((p) => p.source === 'words');
+  const list = phrases.map((p, i) => `${i + 1}. "${p.key_phrase}"${p.polished ? ` — e.g. "${p.polished}"` : ''} (meaning: ${p.meaning_ja || 'see the display'}${p.you_said ? `; ${name} had said: "${p.you_said}"` : ''})`).join('\n');
   return `You are ${a.name}, an English conversation partner in "Yosho Talk" (洋書トーク), a learning app linked to the YouTube show "Yosho Radio" (洋書ラジオ).
 You are ${a.persona}
 ${a.accent}${voiceFor(avatar).prompt ? `\nYour voice: ${voiceFor(avatar).prompt}` : ''}
 The learner's name is ${name}. Always call them "${name}".
 ${name} is a Japanese speaker whose English level is ${LEVELS[level].en}. These phrases are one step above that level.
-${book ? `Their recent talk was about "${book.title}"${book.author ? ` by ${book.author}` : ''}.` : ''}
+${book ? `${fromWords ? 'They met it in' : 'Their recent talk was about'} "${book.title}"${book.author ? ` by ${book.author}` : ''}.` : ''}
 
 TODAY: PHRASE PRACTICE
-${one ? 'This phrase comes' : 'These phrases come'} from feedback on ${name}'s last talk. ${one ? 'It is' : 'They are'} already on the display:
+${one ? 'This phrase comes' : 'These phrases come'} from ${fromWords ? `${name}'s word book (words and phrases they saved to learn)` : `feedback on ${name}'s last talk`}. ${one ? 'It is' : 'They are'} already on the display:
 ${list}
 
 FLOW
@@ -296,6 +308,7 @@ export function renderTalk(el, [bookIdParam]) {
     startedAt: 0,
     muted: false,
     practice: null, // phrases being practised, or null for a normal talk
+    nextPractice: null, // phrases from the word book, waiting for the start button
     elapsedBefore: 0, // seconds of earlier sessions in this talk (before a pause)
     segStart: 0,
     lastActivity: 0,
@@ -331,6 +344,11 @@ export function renderTalk(el, [bookIdParam]) {
 
   const setup = $('#setup', el);
   const displayEl = $('#display', el);
+  if (pendingPractice) {
+    state.nextPractice = pendingPractice.phrases;
+    if (getBook(pendingPractice.bookId)) state.bookId = pendingPractice.bookId;
+    pendingPractice = null;
+  }
 
   function drawSetup() {
     const locked = state.status !== 'idle' && state.status !== 'ended';
@@ -347,6 +365,12 @@ export function renderTalk(el, [bookIdParam]) {
         <small>${!u.limit ? '「トークを始める」から招待コードを入力すると、トークを使えるようになります' : u.left < 1 ? '今月の上限に達しました' : `残り ${Math.ceil(u.left / 60)}分`}${u.limit ? ` ・ ${u.resetLabel}にリセット` : ''}</small>
       </div>
       <p class="mini hist-shortcut"><a href="#/history">📜 これまでのトークを見る</a></p>
+      ${state.nextPractice && !locked ? `
+      <div class="practice-next">
+        <p><b>🎙️ 単語帳のフレーズを練習</b><button class="icon-btn" id="practiceCancel" aria-label="練習をやめる" title="練習をやめる">✕</button></p>
+        ${state.nextPractice.map((p) => `<p class="practice-term"><b>${esc(p.key_phrase)}</b>${p.meaning_ja ? ` — ${esc(p.meaning_ja)}` : ''}</p>`).join('')}
+        <p class="mini muted">キャラクターとレベルを選んで「練習を始める」を押してください。</p>
+      </div>` : ''}
       <p class="mini muted hello">${s.userName ? `👋 ${esc(s.userName)} さん` : '呼び名が未登録です'} <button class="link-btn" id="editName" ${dis}>${s.userName ? '変更' : '登録'}</button></p>
 
       <h3 class="pick-title">話す本</h3>
@@ -376,13 +400,14 @@ export function renderTalk(el, [bookIdParam]) {
           </button>`).join('')}
       </div>
 
+      ${state.nextPractice ? '' : `
       <h3 class="pick-title">テーマ</h3>
       <div class="opt-list">
         ${Object.entries(MODES).map(([k, m], i) => `
           <button class="opt ${k === state.mode ? 'on' : ''}" data-mode="${k}" ${dis}>
             <b class="opt-key">${'①②③'[i]}</b><span><b>${m.label}</b><small>${m.desc}</small></span>
           </button>`).join('')}
-      </div>
+      </div>`}
 
       ${state.saved.length ? `
       <div class="saved-box">
@@ -390,11 +415,12 @@ export function renderTalk(el, [bookIdParam]) {
         <ul class="chips">${state.saved.map((v) => `<li title="${esc(v.meaning)}">${esc(v.term)}</li>`).join('')}</ul>
       </div>` : ''}
 
-      <button class="btn btn-primary btn-lg setup-start" id="setupStart" ${dis}>🎙️ トークを始める</button>`;
+      <button class="btn btn-primary btn-lg setup-start" id="setupStart" ${dis}>🎙️ ${state.nextPractice ? '練習を始める' : 'トークを始める'}</button>`;
     const pick = $('.book-pick', setup);
     if (pick) pick.scrollLeft = pickScroll;
     if (locked) return;
-    $('#setupStart', setup).onclick = () => start();
+    $('#setupStart', setup).onclick = () => start(state.nextPractice);
+    $('#practiceCancel', setup)?.addEventListener('click', () => { state.nextPractice = null; drawSetup(); drawStage(); });
     $('#editName', setup).onclick = async () => { await askUserName(); drawSetup(); };
     // Picking only moves the highlight: redrawing would rebuild the cover and face
     // images, and they flash blank for a moment while they reload.
@@ -439,8 +465,8 @@ export function renderTalk(el, [bookIdParam]) {
     $('#statusDot', el).className = `status-dot ${state.status}`;
     const c = $('#controls', el);
     if (state.status === 'idle' || state.status === 'ended') {
-      c.innerHTML = `<button class="btn btn-primary btn-lg" id="start">🎙️ トークを始める</button>`;
-      $('#start', c).onclick = () => start();
+      c.innerHTML = `<button class="btn btn-primary btn-lg" id="start">🎙️ ${state.nextPractice ? '練習を始める' : 'トークを始める'}</button>`;
+      $('#start', c).onclick = () => start(state.nextPractice);
     } else if (state.status === 'live' || state.status === 'connecting' || state.status === 'lost') {
       c.innerHTML = `
         <button class="btn" id="mute">${state.muted ? '🔇 ミュート中' : '🎤 マイクON'}</button>
@@ -580,6 +606,7 @@ export function renderTalk(el, [bookIdParam]) {
     }
     closeAskBox();
     state.practice = practice;
+    state.nextPractice = null;
     state.reviewing = false;
     state.turns = [];
     state.saved = [];
@@ -595,7 +622,7 @@ export function renderTalk(el, [bookIdParam]) {
       state.shown.push({
         heading: practice.length === 1 ? "Today's phrase" : "Today's phrases",
         style: 'vocabulary',
-        items: practice.map((p) => ({ text: p.key_phrase, note: `${p.meaning_ja} / ${p.polished}` })),
+        items: practice.map((p) => ({ text: p.key_phrase, note: [p.meaning_ja, p.polished].filter(Boolean).join(' / ') })),
       });
     }
     drawDisplay();

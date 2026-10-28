@@ -238,6 +238,11 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
 .avatar-opt.on { border-color: var(--yellow); background: var(--yellow-soft); }
 .avatar-opt:disabled { opacity: .55; cursor: default; }
 .saved-box h3 { font-size: .9rem; }
+.practice-next { border: 2px solid var(--yellow); background: var(--yellow-soft); border-radius: 14px; padding: 10px 12px; margin-bottom: 14px; }
+.practice-next p { margin: 0 0 4px; }
+.practice-next p:first-child { display: flex; justify-content: space-between; align-items: center; }
+.practice-term { font-size: 1.05rem; }
+.practice-next .mini { margin: 6px 0 0; }
 
 .stage { display: flex; align-items: center; gap: 24px; background: linear-gradient(135deg, var(--yellow) 0%, #FFD95A 100%); border: 0; color: var(--navy); }
 .stage h2 { font-family: var(--serif); font-size: 1.6rem; margin: 0; }

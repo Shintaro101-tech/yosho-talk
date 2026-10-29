@@ -654,7 +654,8 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
 .book-more .book-none { font-size: 1.6rem; }
 .book-search .seg { display: flex; margin: 10px 0 4px; }
 .book-search .seg button { flex: 1; white-space: nowrap; padding: 6px 4px; font-size: .85rem; }
-.book-search-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; max-height: 55vh; overflow-y: auto; }
+/* A fixed height, so the dialog keeps its size while the list is filtered. */
+.book-search-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; align-content: start; gap: 6px; height: min(55vh, 460px); overflow-y: auto; }
 .book-search-list button {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 6px 8px;
   border: 2px solid var(--line); background: var(--surface); border-radius: 12px; cursor: pointer; font: inherit; color: inherit;

@@ -53,7 +53,6 @@ export function renderWords(el) {
     $$('[data-speak]', el).forEach((b) => (b.onclick = () => speak(b.dataset.speak)));
     $$('[data-pics]', el).forEach((b) => (b.onclick = () => togglePictures(b.closest('.word'))));
     $$('[data-practice]', el).forEach((b) => (b.onclick = () => practiseWord(data.vocab.find((v) => v.id === b.dataset.practice))));
-    $$('[data-ask]', el).forEach((b) => (b.onclick = () => ask.prefill(`「${b.dataset.ask}」について：`)));
     $$('[data-edit]', el).forEach((b) => (b.onclick = () => openWordForm(data.vocab.find((v) => v.id === b.dataset.edit), draw)));
     $$('[data-del]', el).forEach((b) => (b.onclick = () => {
       const v = data.vocab.find((x) => x.id === b.dataset.del);
@@ -61,7 +60,7 @@ export function renderWords(el) {
     }));
   };
   // Floating chat for questions about the words (the newest 60 are given as context).
-  const ask = openAskBox({ words: data.vocab.slice(0, 60), level: data.settings.level });
+  openAskBox({ words: () => data.vocab.slice(0, 60), level: data.settings.level });
   draw();
   addEmoji();
   return closeAskBox;
@@ -77,7 +76,6 @@ function wordRow(v) {
         <button class="icon-btn" data-pics aria-label="イメージ写真を見る" title="イメージ写真">🖼️</button>
         <span class="word-actions">
           ${canUseAI() ? `<button class="icon-btn" data-practice="${v.id}" aria-label="この語を使う会話練習" title="会話練習">🎙️</button>` : ''}
-          ${canUseAI() ? `<button class="icon-btn" data-ask="${esc(v.term)}" aria-label="この語について質問" title="この語について質問">💬</button>` : ''}
           <button class="icon-btn" data-edit="${v.id}" aria-label="編集">✏️</button>
           <button class="icon-btn" data-del="${v.id}" aria-label="削除">🗑️</button>
         </span>

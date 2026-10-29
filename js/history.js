@@ -57,6 +57,13 @@ export function renderHistory(el, [bookParam]) {
     }));
   };
   draw();
+  // Floating chat for questions about the expressions from recent talks' feedback.
+  openAskBox({
+    source: 'history',
+    level: data.settings.level,
+    words: () => data.talks.flatMap((t) => t.feedback?.polished || []).slice(0, 30)
+      .map((p) => ({ term: p.key_phrase, meaning: p.meaning_ja, example: p.polished })),
+  });
   return closeAskBox;
 }
 

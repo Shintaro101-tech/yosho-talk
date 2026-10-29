@@ -11,6 +11,7 @@ import { ensurePasscode } from './api.js';
 import { searchImages, picturesHTML } from './images.js';
 import { responsesJSON } from './live.js';
 import { bookCover } from './books.js';
+import { openAskBox, closeAskBox } from './askbox.js';
 
 const CACHE_KEY = 'yoshotalk:dict';
 const CACHE_MAX = 40;
@@ -319,8 +320,17 @@ export function renderDict(el, [param]) {
     lookUp(form.q.value, form.ctx.value.trim());
   };
   drawRecent();
+  // Floating chat for questions; it knows the entry on screen and the recent look-ups.
+  openAskBox({
+    source: 'dict',
+    level: data.settings.level,
+    words: () => [entry, ...cache.recent.map((k) => cache.entries[k])]
+      .filter((e, i, all) => e?.found && all.indexOf(e) === i).slice(0, 20)
+      .map((e) => ({ term: e.headword, meaning: e.senses.map((x) => x.meaning_ja).slice(0, 2).join('；'), example: e.senses[0]?.example_en || '' })),
+  });
   if (param) lookUp(param);
   else setTimeout(() => form.q.focus(), 50);
+  return closeAskBox;
 }
 
 // Recordings from Free Dictionary API (Wiktionary audio), by accent.

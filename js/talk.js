@@ -69,6 +69,48 @@ function talkBooks() {
     || String(b.finishDate || b.startDate || '').localeCompare(String(a.finishDate || a.startDate || ''))
     || (b.createdAt || 0) - (a.createdAt || 0));
 }
+// The few books shown first: the chosen one, books being read, books talked about
+// lately, then the rest in talkBooks() order. The others are found with pickOtherBook().
+const PICK_MAX = 6;
+function likelyBooks(chosenId) {
+  const talked = data.talks.map((t) => getBook(t.bookId));
+  const list = [getBook(chosenId), ...talkBooks().filter((b) => b.status === 'reading'), ...talked, ...talkBooks()].filter(Boolean);
+  return [...new Map(list.map((b) => [b.id, b])).values()].slice(0, PICK_MAX);
+}
+
+// A dialog to find any book on the shelf (by title or author, or by status).
+function pickOtherBook(chosenId, onPick) {
+  let query = '';
+  let status = '';
+  const dlg = openDialog(`
+    <div class="form book-search">
+      <h2>📚 本を選ぶ</h2>
+      <input type="search" id="bsQ" placeholder="🔍 タイトル・著者で検索" aria-label="タイトル・著者で検索" autocomplete="off">
+      <div class="seg" id="bsSt">
+        ${[['', 'すべて'], ...Object.entries(STATUS_LABEL)].map(([k, l]) => `<button type="button" data-st="${k}" class="${k === status ? 'on' : ''}">${l}</button>`).join('')}
+      </div>
+      <ul class="book-search-list" id="bsList"></ul>
+      <div class="actions"><button type="button" class="btn btn-ghost" data-close>閉じる</button></div>
+    </div>`);
+  const draw = () => {
+    const q = query.trim().toLowerCase();
+    const books = talkBooks().filter((b) => (!status || b.status === status)
+      && (!q || `${b.title} ${b.author || ''}`.toLowerCase().includes(q)));
+    $('#bsList', dlg).innerHTML = books.length ? books.map((b) => `
+      <li><button type="button" data-pick="${b.id}" class="${b.id === chosenId ? 'on' : ''}">
+        ${bookCover(b, 'xs')}<span><b>${esc(b.title)}</b><small>${esc(b.author || '')}${b.author ? ' ・ ' : ''}${STATUS_LABEL[b.status] || ''}</small></span>
+      </button></li>`).join('') : '<li class="mini muted">見つかりません</li>';
+    $$('[data-pick]', dlg).forEach((b) => (b.onclick = () => { dlg.close(); onPick(b.dataset.pick); }));
+  };
+  $('#bsQ', dlg).oninput = (e) => { query = e.target.value; draw(); };
+  $$('[data-st]', dlg).forEach((b) => (b.onclick = () => {
+    status = b.dataset.st;
+    $$('[data-st]', dlg).forEach((x) => x.classList.toggle('on', x === b));
+    draw();
+  }));
+  draw();
+}
+
 const IDLE_MS = 30_000; // pause the session after this long with nobody speaking
 
 // Escapes text and marks the key phrase inside the polished sentence.
@@ -388,10 +430,12 @@ export function renderTalk(el, [bookIdParam]) {
       ${data.books.length ? `
       <div class="book-pick" role="listbox" aria-label="どの本について話す？">
         <button class="book-opt ${!book ? 'on' : ''}" data-book="" ${dis}><span class="book-none">📚</span><small>指定しない</small></button>
-        ${talkBooks().map((b) => `
+        ${likelyBooks(state.bookId).map((b) => `
           <button class="book-opt ${b.id === state.bookId ? 'on' : ''}" data-book="${b.id}" ${dis} title="${esc(b.title)}">
             ${bookCover(b, 'sm')}<small>${esc(b.title)}</small><em class="st st-${b.status}">${STATUS_LABEL[b.status] || ''}</em>
           </button>`).join('')}
+        ${data.books.length > PICK_MAX ? `
+        <button class="book-opt book-more" id="moreBooks" ${dis}><span class="book-none">🔍</span><small>ほかの本から選ぶ</small><em class="st">全${data.books.length}冊</em></button>` : ''}
       </div>` : '<p class="mini muted">本棚に本を登録すると、ここで話す本を選べます。<a href="#/books">本棚へ</a></p>'}
 
       <h3 class="pick-title">誰と話す？</h3>
@@ -439,6 +483,12 @@ export function renderTalk(el, [bookIdParam]) {
       $$(`[${attr}]`, setup).forEach((x) => x.classList.toggle('on', x === b));
       save();
     };
+    $('#moreBooks', setup)?.addEventListener('click', () => pickOtherBook(state.bookId, (id) => {
+      state.bookId = s.talkBookId = id;
+      save();
+      drawSetup();
+      $('.book-pick', setup).scrollLeft = 0; // the chosen book now comes first
+    }));
     $$('[data-book]', setup).forEach((b) => (b.onclick = () => {
       state.bookId = s.talkBookId = b.dataset.book;
       pickOne('data-book', b);

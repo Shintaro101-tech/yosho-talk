@@ -651,6 +651,18 @@ input[type=date]::-webkit-date-and-time-value { text-align: left; }
   border: 2px solid var(--line); background: var(--surface); border-radius: 12px; cursor: pointer; font: inherit; color: inherit; scroll-snap-align: start;
 }
 .book-opt.on { border-color: var(--yellow); background: var(--yellow-soft); }
+.book-more .book-none { font-size: 1.6rem; }
+.book-search .seg { display: flex; margin: 10px 0 4px; }
+.book-search .seg button { flex: 1; white-space: nowrap; padding: 6px 4px; font-size: .85rem; }
+.book-search-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; max-height: 55vh; overflow-y: auto; }
+.book-search-list button {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 6px 8px;
+  border: 2px solid var(--line); background: var(--surface); border-radius: 12px; cursor: pointer; font: inherit; color: inherit;
+}
+.book-search-list button.on { border-color: var(--yellow); background: var(--yellow-soft); }
+.book-search-list b { display: block; font-size: .9rem; line-height: 1.3; }
+.book-search-list small { display: block; color: var(--muted); font-size: .75rem; }
+.book-search-list .cover { flex-shrink: 0; }
 .book-opt:disabled { opacity: .55; cursor: default; }
 .book-opt small { font-size: .7rem; font-weight: 700; line-height: 1.25; text-align: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
 .book-opt .st { font-style: normal; font-size: .6rem; font-weight: 800; color: var(--muted); }

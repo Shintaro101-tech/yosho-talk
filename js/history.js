@@ -6,7 +6,6 @@ import { data, getBook, addVocab, deleteTalk, hasVocab } from './store.js';
 import { AVATARS, avatarHTML } from './avatars.js';
 import { bookCover } from './books.js';
 import { openAskBox, closeAskBox } from './askbox.js';
-import { canUseAI } from './cloud.js';
 
 const NO_BOOK = 'none';
 
@@ -119,7 +118,6 @@ function fillDetails(d, t, redraw) {
               ${hasVocab(p.key_phrase)
                 ? '<button class="btn btn-sm" disabled>✓ 単語帳にあります</button>'
                 : `<button class="btn btn-sm" data-add="${i}">＋単語帳</button>`}
-              ${canUseAI() ? `<button class="btn btn-sm btn-ghost" data-ask="${i}">💬 質問する</button>` : ''}
             </span>
           </li>`).join('')}
       </ul>` : ''}
@@ -163,10 +161,6 @@ function fillDetails(d, t, redraw) {
     addVocab({ term: p.key_phrase, meaning: p.meaning_ja, example: p.polished, note: p.why_ja, bookId: t.bookId || null, source: 'feedback' });
     b.disabled = true;
     b.textContent = '✓ 追加しました';
-  }));
-  $$('[data-ask]', body).forEach((b) => (b.onclick = () => {
-    const ask = openAskBox({ phrases: polished, level: t.level, bookTitle: getBook(t.bookId)?.title || t.bookTitle || '' });
-    ask.prefill(`「${polished[+b.dataset.ask].key_phrase}」について：`);
   }));
   $('[data-del]', body).onclick = () => {
     if (!confirm('このトークの記録を削除しますか？（単語帳の単語は残ります）')) return;

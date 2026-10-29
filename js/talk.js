@@ -380,13 +380,13 @@ export function renderTalk(el, [bookIdParam]) {
       <div class="practice-next">
         <p><b>🎙️ 単語帳のフレーズを練習</b><button class="icon-btn" id="practiceCancel" aria-label="練習をやめる" title="練習をやめる">✕</button></p>
         ${state.nextPractice.map((p) => `<p class="practice-term"><b>${esc(p.key_phrase)}</b>${p.meaning_ja ? ` — ${esc(p.meaning_ja)}` : ''}</p>`).join('')}
-        <p class="mini muted">キャラクターとレベルを選んで「練習を始める」を押してください。</p>
+        <p class="mini muted">話し相手とレベルを選んで「練習を始める」を押してください。</p>
       </div>` : ''}
       <p class="mini muted hello">${s.userName ? `👋 ${esc(s.userName)} さん` : '呼び名が未登録です'} <button class="link-btn" id="editName" ${dis}>${s.userName ? '変更' : '登録'}</button></p>
 
-      <h3 class="pick-title">話す本</h3>
+      <h3 class="pick-title">どの本について話す？</h3>
       ${data.books.length ? `
-      <div class="book-pick" role="listbox" aria-label="話す本">
+      <div class="book-pick" role="listbox" aria-label="どの本について話す？">
         <button class="book-opt ${!book ? 'on' : ''}" data-book="" ${dis}><span class="book-none">📚</span><small>指定しない</small></button>
         ${talkBooks().map((b) => `
           <button class="book-opt ${b.id === state.bookId ? 'on' : ''}" data-book="${b.id}" ${dis} title="${esc(b.title)}">
@@ -394,7 +394,7 @@ export function renderTalk(el, [bookIdParam]) {
           </button>`).join('')}
       </div>` : '<p class="mini muted">本棚に本を登録すると、ここで話す本を選べます。<a href="#/books">本棚へ</a></p>'}
 
-      <h3 class="pick-title">キャラクター</h3>
+      <h3 class="pick-title">誰と話す？</h3>
       <div class="avatar-pick">
         ${Object.entries(AVATARS).filter(([, a]) => a.talk !== false).map(([k, a]) => `
           <button class="avatar-opt ${k === state.avatar ? 'on' : ''}" data-av="${k}" ${dis}>
@@ -412,7 +412,7 @@ export function renderTalk(el, [bookIdParam]) {
       </div>
 
       ${state.nextPractice ? '' : `
-      <h3 class="pick-title">テーマ</h3>
+      <h3 class="pick-title">何を話す？</h3>
       <div class="opt-list">
         ${Object.entries(MODES).map(([k, m], i) => `
           <button class="opt ${k === state.mode ? 'on' : ''}" data-mode="${k}" ${dis}>

@@ -850,3 +850,10 @@ body.logged-out .nav, body.logged-out .player-chip { display: none; }
 .login-note { margin-top: 14px; }
 .danger-zone { margin-top: 12px; }
 .danger-zone summary { cursor: pointer; font-size: .85rem; color: var(--muted); }
+
+/* Settings: read-aloud voice */
+#voiceCard .row { flex-wrap: nowrap; }
+#voiceCard select { flex: 1; min-width: 0; }
+.voice-tip { margin-top: 10px; }
+.voice-tip summary { cursor: pointer; color: var(--accent); }
+.voice-tip p { margin: 6px 0 0; line-height: 1.6; }

@@ -12,6 +12,7 @@ import { searchImages, picturesHTML } from './images.js';
 import { responsesJSON } from './live.js';
 import { bookCover } from './books.js';
 import { openAskBox, closeAskBox } from './askbox.js';
+import { speak, findRecordings } from './speech.js';
 
 const CACHE_KEY = 'yoshotalk:dict';
 const CACHE_MAX = 40;
@@ -333,33 +334,5 @@ export function renderDict(el, [param]) {
   return closeAskBox;
 }
 
-// Recordings from Free Dictionary API (Wiktionary audio), by accent.
-async function findRecordings(word) {
-  try {
-    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
-    if (!res.ok) return {};
-    const found = {};
-    for (const e of await res.json()) {
-      for (const p of e.phonetics || []) {
-        const m = (p.audio || '').match(/-(us|uk|au)\.mp3$/);
-        if (m && !found[m[1]]) found[m[1]] = p.audio;
-      }
-    }
-    return found;
-  } catch { return {}; }
-}
-
-// The browser's own voice, in the chosen accent.
-function say(text, accent = 'us', rate = 0.9) {
-  if (!('speechSynthesis' in window)) return toast('この端末では音声を再生できません');
-  speechSynthesis.cancel();
-  const lang = accent === 'uk' ? 'en-GB' : 'en-US';
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = lang;
-  u.rate = rate;
-  const voices = speechSynthesis.getVoices();
-  const v = voices.find((x) => x.lang.replace('_', '-') === lang && /Samantha|Daniel|Google|Aria|Jenny|Serena|Ava/i.test(x.name))
-    || voices.find((x) => x.lang.replace('_', '-') === lang);
-  if (v) u.voice = v;
-  speechSynthesis.speak(u);
-}
+// The device's most natural voice, in the chosen accent (see speech.js).
+const say = (text, accent = 'us', rate = 0.9) => speak(text, { accent, rate });

@@ -1,4 +1,5 @@
-import { $, $$, esc, openDialog, speak, toast } from './util.js';
+import { $, $$, esc, openDialog, toast } from './util.js';
+import { speakTerm, prefetchRecordings } from './speech.js';
 import { data, save, addVocab, updateVocab, deleteVocab, getBook } from './store.js';
 import { relayReady } from './api.js';
 import { responsesJSON } from './live.js';
@@ -50,7 +51,8 @@ export function renderWords(el) {
       n.setSelectionRange(n.value.length, n.value.length);
     };
     $('#bf', el).onchange = (e) => { bookFilter = e.target.value; draw(); };
-    $$('[data-speak]', el).forEach((b) => (b.onclick = () => speak(b.dataset.speak)));
+    $$('[data-speak]', el).forEach((b) => (b.onclick = () => speakTerm(b.dataset.speak)));
+    prefetchRecordings(list.map((v) => v.term));
     $$('[data-pics]', el).forEach((b) => (b.onclick = () => togglePictures(b.closest('.word'))));
     $$('[data-practice]', el).forEach((b) => (b.onclick = () => practiseWord(data.vocab.find((v) => v.id === b.dataset.practice))));
     $$('[data-edit]', el).forEach((b) => (b.onclick = () => openWordForm(data.vocab.find((v) => v.id === b.dataset.edit), draw)));

@@ -52,18 +52,6 @@ export function toast(msg, kind = 'info') {
 }
 
 // English text-to-speech with the browser's built-in voices (free, offline-ish).
-export function speak(text, rate = 0.95) {
-  if (!('speechSynthesis' in window) || !text) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'en-US';
-  u.rate = rate;
-  const v = speechSynthesis.getVoices().find((v) => v.lang === 'en-US' && /Samantha|Google US|Aria|Jenny/i.test(v.name))
-    || speechSynthesis.getVoices().find((v) => v.lang.startsWith('en'));
-  if (v) u.voice = v;
-  speechSynthesis.speak(u);
-}
-
 // Opens the shared <dialog>. `onSubmit(formData, form)` may return false to keep it open.
 export function openDialog(html, { onSubmit, onOpen } = {}) {
   const dlg = $('#dialog');

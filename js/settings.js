@@ -2,6 +2,7 @@ import { $, esc, toast, updateApp, NAME_PATTERN, NAME_HINT, checkNameField } fro
 import { data, save, exportJSON, importJSON, resetAll } from './store.js';
 import { getPasscode, setPasscode, checkPasscode, ensurePasscode } from './api.js';
 import { installApp, isInstalled } from './install.js';
+import { englishVoices, pickVoice, setVoice, speak, onVoices } from './speech.js';
 import { CLOUD, currentAccount, userEmail, signOut, deleteAccount, refreshAccount, setPassword } from './cloud.js';
 
 export function renderSettings(el) {
@@ -17,6 +18,19 @@ export function renderSettings(el) {
         <button class="btn btn-primary">保存</button>
       </div>
     </form>
+
+    <section class="card form" id="voiceCard">
+      <h2>🔊 読み上げの声</h2>
+      <p class="mini muted">単語帳や辞書の例文を読み上げる声です。単語は、録音がある語は実際の人の発音で再生します。</p>
+      <div class="row">
+        <select id="voice" aria-label="読み上げの声"></select>
+        <button type="button" class="btn" id="voiceTest">▶ 試聴</button>
+      </div>
+      <details class="mini voice-tip">
+        <summary>もっと自然な声にするには（iPhone・iPad・Mac）</summary>
+        <p>設定アプリ →「アクセシビリティ」→「読み上げコンテンツ」→「声」→「英語」で、<b>Ava</b> や <b>Zoe</b> などの「<b>プレミアム</b>」か「<b>拡張</b>」の声をダウンロードしてください。ダウンロード後にこの画面を開き直すと、一覧に出て、自動で選ばれます。<br>パソコンでは Microsoft Edge で開くと、とても自然な「Natural」の声が使えます。</p>
+      </details>
+    </section>
 
     <section class="card form">
       <h2>📲 ホーム画面に追加</h2>
@@ -50,6 +64,7 @@ export function renderSettings(el) {
     <p class="about"><button class="link-btn" id="update">🔄 最新版に更新</button></p>`;
 
   $('#install', el)?.addEventListener('click', installApp);
+  bindVoice(el);
   checkNameField($('#nameForm input[name=name]', el));
   $('#update', el).onclick = (e) => { e.target.disabled = true; e.target.textContent = '更新しています…'; updateApp(); };
   if (CLOUD) {
@@ -89,6 +104,24 @@ export function renderSettings(el) {
     toast('初期化しました');
     renderSettings(el);
   };
+}
+
+// The read-aloud voice: automatic (the most natural one on this device) or chosen.
+function bindVoice(el) {
+  const select = $('#voice', el);
+  const fill = () => {
+    const voices = englishVoices();
+    const best = voices[0];
+    const chosen = voices.some((v) => v.voiceURI === data.settings.ttsVoice) ? data.settings.ttsVoice : '';
+    select.innerHTML = `
+      <option value="">おすすめ（自動）${best ? `：${esc(best.name)}` : ''}</option>
+      ${voices.map((v) => `<option value="${esc(v.voiceURI)}" ${v.voiceURI === chosen ? 'selected' : ''}>${esc(v.name)}（${esc(v.lang)}）</option>`).join('')}`;
+    if (!voices.length) select.innerHTML = '<option value="">この端末では英語の声が見つかりません</option>';
+  };
+  fill();
+  onVoices(() => { if (document.contains(select)) fill(); });
+  select.onchange = () => { setVoice(select.value); speak('Hello! This is how I will read your words and sentences.'); };
+  $('#voiceTest', el).onclick = () => speak(`Hello! I'm ${pickVoice()?.name.split(/[ (]/)[0] || 'your reading voice'}. The book was absolutely gripping from start to finish.`);
 }
 
 function bindPasscode(el) {

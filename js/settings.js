@@ -27,8 +27,12 @@ export function renderSettings(el) {
         <button type="button" class="btn" id="voiceTest">▶ 試聴</button>
       </div>
       <details class="mini voice-tip">
-        <summary>もっと自然な声にするには（iPhone・iPad・Mac）</summary>
-        <p>設定アプリ →「アクセシビリティ」→「読み上げコンテンツ」→「声」→「英語」で、<b>Ava</b> や <b>Zoe</b> などの「<b>プレミアム</b>」か「<b>拡張</b>」の声をダウンロードしてください。ダウンロード後にこの画面を開き直すと、一覧に出て、自動で選ばれます。<br>パソコンでは Microsoft Edge で開くと、とても自然な「Natural」の声が使えます。</p>
+        <summary>声について</summary>
+        <p>使える声は、端末とブラウザによって違います。</p>
+        <ul>
+          <li><b>iPhone・iPad</b>：iOS の制限で、設定アプリからダウンロードした声（プレミアム・拡張）はこのアプリでは使えません。一覧の中から聞きやすい声を選んでください。1語の単語は、録音があれば実際の人の発音で再生します。</li>
+          <li><b>パソコン</b>：Microsoft Edge で開くと、とても自然な「Natural」の声が使えます。Mac の Chrome では、Mac の設定（アクセシビリティ → 読み上げコンテンツ）でダウンロードした声も使えます。</li>
+        </ul>
       </details>
     </section>
 

@@ -857,3 +857,5 @@ body.logged-out .nav, body.logged-out .player-chip { display: none; }
 .voice-tip { margin-top: 10px; }
 .voice-tip summary { cursor: pointer; color: var(--accent); }
 .voice-tip p { margin: 6px 0 0; line-height: 1.6; }
+.voice-tip ul { margin: 6px 0 0; padding-left: 1.2em; line-height: 1.6; }
+.voice-tip li + li { margin-top: 4px; }

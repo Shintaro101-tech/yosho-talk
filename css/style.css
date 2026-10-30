@@ -613,6 +613,9 @@ kbd { font-family: ui-monospace, monospace; font-size: .7rem; padding: 1px 5px; 
 .grid2 > label { min-width: 0; }
 input[type=date] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; min-height: 44px; text-align: left; }
 input[type=date]::-webkit-date-and-time-value { text-align: left; }
+.date-field { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.date-field input { flex: 1; width: 100%; }
+.date-field .btn { flex: none; font-weight: 400; }
 @media (max-width: 600px) {
   /* 16px stops iPhone zooming into fields */
   input, select, textarea { font-size: 16px; }

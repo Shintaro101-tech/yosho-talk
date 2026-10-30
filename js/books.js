@@ -181,8 +181,12 @@ export function openBookForm(book, done) {
             ${[0, 1, 2, 3, 4, 5].map((n) => `<option value="${n}" ${+b.rating === n ? 'selected' : ''}>${n ? stars(n) : '—'}</option>`).join('')}
           </select>
         </label>
-        <label>読み始め <input type="date" name="startDate" value="${esc(b.startDate || '')}"></label>
-        <label>読了日 <input type="date" name="finishDate" value="${esc(b.finishDate || '')}"></label>
+        <label>読み始め
+          <span class="date-field"><input type="date" name="startDate" value="${esc(b.startDate || '')}"><button type="button" class="btn btn-ghost btn-sm" data-clear="startDate">クリア</button></span>
+        </label>
+        <label>読了日
+          <span class="date-field"><input type="date" name="finishDate" value="${esc(b.finishDate || '')}"><button type="button" class="btn btn-ghost btn-sm" data-clear="finishDate">クリア</button></span>
+        </label>
       </div>
       <label>メモ・感想（トークのときアバターに伝わります）
         <textarea name="memo" rows="3" placeholder="好きな場面、印象に残った言葉、どこまで読んだか など">${esc(b.memo || '')}</textarea>
@@ -203,7 +207,11 @@ export function openBookForm(book, done) {
       form.title.addEventListener('input', () => { if (!form.cover.value) preview(); });
       form.status.onchange = () => {
         if (form.status.value === 'finished' && !form.finishDate.value) form.finishDate.value = today();
+        // A book still to read has no reading dates yet.
+        if (form.status.value === 'want') form.startDate.value = form.finishDate.value = '';
       };
+      // Date inputs can't be emptied on some phones (iPhone), so each has a clear button.
+      $$('[data-clear]', dlg).forEach((btn) => (btn.onclick = () => { form[btn.dataset.clear].value = ''; }));
 
       const search = () => searchBooks($('#olField', dlg).value, $('#olQuery', dlg).value, $('#olResults', dlg), (d) => {
         form.title.value = d.title;

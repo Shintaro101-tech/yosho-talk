@@ -13,13 +13,16 @@
 //   POST /voices         -> OpenAI POST /v1/audio/voices (prompt-to-voice: create a custom voice)
 //   GET  /cover?isbn=…   -> a Japanese book's cover image (no passcode; images only)
 //   POST /images         -> Pixabay image search for the dictionary ({ q } → a few pictures)
+//   POST /illustrations  -> OpenAI POST /v1/images/generations ({ prompt } → { src: data URL });
+//                           AI-ALT's board pictures. Owner (passcode) and admin accounts only.
 //
 // Only the WebRTC handshake passes through here; the voice audio itself flows
 // directly between the browser and OpenAI.
 //
 // Secrets (wrangler secret put): OPENAI_API_KEY, PASSCODE, PIXABAY_KEY (optional),
 //   SUPABASE_SERVICE_KEY, INVITE_CODE (accounts)
-// Vars (wrangler.toml): ALLOWED_ORIGINS, BACKEND_MODEL, LIGHT_MODEL, SUPABASE_URL
+// Vars (wrangler.toml): ALLOWED_ORIGINS, BACKEND_MODEL, LIGHT_MODEL, SUPABASE_URL,
+//   IMAGE_MODEL, IMAGE_QUALITY
 
 const OPENAI = 'https://api.openai.com/v1';
 const MAX_BODY = 200_000;
@@ -124,6 +127,33 @@ export default {
         if (account.usage[`${job}_calls`] >= limit) return error(402, `${JOBS[job].limit}。来月1日にリセットされます。`, cors, 'AI_LIMIT');
         await addUsage(env, account, 0, job);
       }
+    }
+
+    // AI illustrations for AI-ALT's board: a landscape JPEG, returned as a data URL.
+    if (req.method === 'POST' && pathname === '/illustrations') {
+      if (account && account.plan !== 'admin') return error(403, 'この機能は管理者だけが使えます。', cors);
+      let prompt = '';
+      try { prompt = String((await req.json()).prompt || '').trim().slice(0, 1000); } catch { /* checked below */ }
+      if (prompt.length < 3) return error(400, 'Describe the picture.', cors);
+      const upstream = await fetch(`${OPENAI}/images/generations`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: env.IMAGE_MODEL || 'gpt-image-2.6-flare',
+          prompt: `A clear, friendly illustration for an English class of Japanese university students, shown on a classroom screen. Bright flat colours, simple shapes, easy to understand from the back of the room. No words, letters or numbers anywhere in the picture.\n\nPicture: ${prompt}`,
+          size: '1536x1024',
+          quality: env.IMAGE_QUALITY || 'medium',
+          output_format: 'jpeg',
+          output_compression: 82,
+          n: 1,
+        }),
+      });
+      if (upstream.status === 401) return error(502, 'OpenAI rejected the API key. Check OPENAI_API_KEY on the relay.', cors);
+      const j = await upstream.json().catch(() => ({}));
+      if (!upstream.ok) return error(upstream.status === 400 ? 400 : 502, j.error?.message || `OpenAI returned ${upstream.status}.`, cors);
+      const b64 = j.data?.[0]?.b64_json;
+      if (!b64) return error(502, 'No picture came back.', cors);
+      return json({ src: `data:image/jpeg;base64,${b64}` }, 200, cors);
     }
 
     if (req.method === 'POST' && pathname === '/images') {
